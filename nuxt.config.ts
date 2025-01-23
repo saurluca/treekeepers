@@ -16,7 +16,10 @@ export default defineNuxtConfig({
     public: {}
   },
   nitro: {
-    preset: 'node-server'
+    preset: 'cloudflare-pages',
+    output: {
+      dir: 'dist'
+    }
   },
   experimental: {
     payloadExtraction: false

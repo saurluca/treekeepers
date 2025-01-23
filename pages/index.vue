@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { TreeDeciduous } from 'lucide-vue-next'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
@@ -39,9 +39,10 @@ import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
 const map = ref(null)
 const searchQuery = ref('')
 let routingControl = null
+let L; // Declare L at module scope
 
 // Define 5 locations near the provided coordinates
-const trees = [
+const trees_samples = [
   { lat: 52.520008, lng: 13.404954, name: 'Oak Tree', health: 3, species: 'Quercus' },      // Central Berlin
   { lat: 52.530008, lng: 13.414954, name: 'Maple Tree', health: 2, species: 'Acer' },       // 2 km NE
   { lat: 52.510008, lng: 13.394954, name: 'Pine Tree', health: 1, species: 'Pinus' },       // 2 km SW
@@ -54,6 +55,8 @@ const trees = [
   { lat: 52.530208, lng: 13.414954, name: 'Poplar Tree', health: 3, species: 'Populus' },   // 2 km NE
   { lat: 52.510808, lng: 13.394954, name: 'Spruce Tree', health: 2, species: 'Picea' },     // 2 km SW
 ]
+
+const trees = ref([])
 
 // Add search handler function
 const handleSearch = async () => {
@@ -114,6 +117,13 @@ const findNearestNeighborRoute = (trees) => {
   return route
 }
 
+// Add this utility function for coordinate conversion
+const convertWebMercatorToLatLng = (x, y) => {
+  const lng = (x * 180) / 20037508.34;
+  const lat = (Math.atan(Math.exp((y * Math.PI) / 20037508.34)) * 360) / Math.PI - 90;
+  return { lat, lng };
+}
+
 // Updated planRoute function
 const planRoute = () => {
   if (!map.value) return
@@ -124,7 +134,7 @@ const planRoute = () => {
   }
 
   // Filter trees that need attention (health < 3)
-  const treesNeedingAttention = trees.filter(tree => tree.health < 3)
+  const treesNeedingAttention = trees.value.filter(tree => tree.health < 3)
   
   // Only proceed if there are trees needing attention
   if (treesNeedingAttention.length === 0) {
@@ -173,52 +183,104 @@ const planRoute = () => {
   })
 }
 
+// Add cleanup ref
+const mapInitialized = ref(false)
+
+// Update createTreeIcon to use the L instance
+const createTreeIcon = () => {
+  if (!L) return null; // Guard against L not being initialized
+  return (health) => L.divIcon({
+    html: `<div class="tree-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" 
+                 width="24" 
+                 height="24" 
+                 viewBox="0 0 24 24" 
+                 fill="none" 
+                 stroke="${health === 3 ? '#16a34a' : health === 2 ? '#ca8a04' : '#dc2626'}" 
+                 stroke-width="2" 
+                 stroke-linecap="round" 
+                 stroke-linejoin="round">
+              <path d="M8 19h8a4 4 0 0 0 3.8-2.8 4 4 0 0 0-1.6-4.5c1-1.1 1-2.7 0-3.8-.7-.8-1.8-1.2-2.9-1.1a3.6 3.6 0 0 0-3.2-2A3.7 3.7 0 0 0 9 6.7c-1.1-.1-2.2.3-2.9 1.1-1 1.1-1 2.7 0 3.8a4 4 0 0 0-1.6 4.5A4 4 0 0 0 8 19Z"/>
+              <path d="M12 19v3"/>
+            </svg>
+          </div>`,
+    className: 'tree-icon',
+    iconSize: [24, 24],
+    iconAnchor: [12, 24],
+    popupAnchor: [0, -24]
+  });
+};
+
 onMounted(async () => {
-  const L = await import('leaflet').then(m => m.default || m)
-  await import('leaflet-routing-machine')
+  if (mapInitialized.value) return
   
-  // Create custom tree icon function that takes health as parameter
-  const createTreeIcon = (health) => {
-    const color = health === 1 ? '#ef4444' : // red-500
-                 health === 2 ? '#eab308' : // yellow-500
-                 '#22c55e' // green-500
+  // Assign L to module scope
+  L = await import('leaflet').then(m => m.default || m)
+  await import('leaflet-routing-machine')
+
+  try {
+    // Load and process GeoJSON data
+    const response = await fetch('/data/tree.geojson')
+    const geojsonData = await response.json()
     
-    return L.divIcon({
-      html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 19h8a4 4 0 0 0 3.8-2.8 4 4 0 0 0-1.6-4.5c1-1.1 1-2.7.4-4-.7-1.2-2.2-2-3.6-1.7a3 3 0 0 0-3-3 3 3 0 0 0-3 3c-1.4-.2-2.9.5-3.6 1.7-.7 1.3-.5 2.9.4 4a4 4 0 0 0-1.6 4.5A4 4 0 0 0 8 19Z"/>
-        <path d="M12 19v3"/>
-      </svg>`,
-      className: 'tree-icon',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-      popupAnchor: [0, -24]
-    })
-  }
+    // Create the icon factory after L is loaded
+    const treeIconFactory = createTreeIcon()
 
-  // Initialize map centered on Berlin coordinates
-  map.value = L.map('map').setView([52.520008, 13.404954], 15)
-
-  // Add OpenStreetMap tile layer
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map.value)
-
-  // Add markers for each tree with health-based colors
-  trees.forEach(tree => {
-    const healthStatus = '❤️'.repeat(tree.health)
-    L.marker([tree.lat, tree.lng], { icon: createTreeIcon(tree.health) })
-      .bindPopup(`
-        <div class="font-bold">${tree.name}</div>
-        <div>Species: ${tree.species}</div>
-        <div>Health: ${healthStatus}</div>
-      `)
-      .bindTooltip(`Health: ${healthStatus}`, {
-        permanent: false,
-        direction: 'top'
+    console.log(geojsonData.features.slice(0, 500))
+    
+    // Transform features into tree format
+    trees.value = geojsonData.features
+      .slice(0, 500)
+      .map(feature => {
+        return {
+          lat: feature.geometry.coordinates[1],
+          lng: feature.geometry.coordinates[0],
+          name: feature.properties.art_deutsch || 'Unknown Tree',
+          species: feature.properties.art_bot || 'Unknown Species',
+          health: Math.floor(Math.random() * 3) + 1
+        };
       })
-      .addTo(map.value)
-  })
+    // console.log(trees.value)
+    // Initialize map only if it hasn't been initialized yet
+    if (!map.value) {
+      map.value = L.map('map').setView([52.520008, 13.404954], 15)
+      mapInitialized.value = true
+
+      // Add OpenStreetMap tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map.value)
+
+      // Add markers for each tree
+      trees.value.forEach(tree => {
+        const healthStatus = '❤️'.repeat(tree.health)
+        L.marker([tree.lat, tree.lng], { icon: treeIconFactory(tree.health) })
+          .bindPopup(`
+            <div class="font-bold">${tree.name}</div>
+            <div>Species: ${tree.species}</div>
+            <div>Health: ${healthStatus}</div>
+          `)
+          .bindTooltip(`Health: ${healthStatus}`, {
+            permanent: false,
+            direction: 'top'
+          })
+          .addTo(map.value)
+      })
+    }
+  } catch (error) {
+    console.error('Error loading tree data:', error)
+    trees.value = []
+  }
+})
+
+// Add cleanup on component unmount
+onUnmounted(() => {
+  if (map.value) {
+    map.value.remove()
+    map.value = null
+    mapInitialized.value = false
+  }
 })
 </script>
 

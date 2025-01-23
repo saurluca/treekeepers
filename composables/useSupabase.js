@@ -3,17 +3,18 @@ import { ref } from 'vue'
 export const useSupabase = () => {
   const client = useSupabaseClient()
 
-  const fetchTrees = async () => {
+  const fetchTrees = async (bounds) => {
     try {
-      console.log('Initiating fetch trees request...')
+      console.log('Fetching trees within bounds:', bounds)
       
       const { data, error } = await client
         .from('trees')
         .select('*')
-        .limit(1000)
-      
-      // Log the raw response
-      console.log('Raw Supabase response:', { data, error })
+        .gte('lat', bounds.south)
+        .lte('lat', bounds.north)
+        .gte('lng', bounds.west)
+        .lte('lng', bounds.east)
+        .limit(10000)
       
       if (error) {
         console.error('Supabase error:', error.message)
@@ -21,12 +22,11 @@ export const useSupabase = () => {
       }
       
       if (!data || data.length === 0) {
-        console.warn('No trees found in database')
+        console.warn('No trees found in current view')
         return []
       }
 
-      console.log(`Successfully fetched ${data.length} trees`)
-      console.log('First tree sample:', data[0])
+      console.log(`Fetched ${data.length} trees in current view`)
       
       return data.map(tree => ({
         lat: tree.lat,

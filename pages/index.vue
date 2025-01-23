@@ -120,8 +120,8 @@ const getVisibleBounds = (map) => {
 
 
 const MINIMUM_ZOOM_FOR_TREES = 18// Only show individual trees at zoom >= 14
-const CLUSTER_RADIUS_BASE = 20 // Increased base radius for larger clusters
-const MAX_VISIBLE_TREES = 200
+const CLUSTER_RADIUS_BASE = 30 // Increased base radius for larger clusters
+const MAX_VISIBLE_TREES = 400
 
 const pixelsToLatLng = (map, pixels, latitude) => {
   const metersPerPixel = 156543.03392 * Math.cos(latitude * Math.PI / 180) / Math.pow(2, map.getZoom())
@@ -196,7 +196,7 @@ const createClusterIcon = () => {
   })
 }
 
-const updateVisibleTrees = () => {
+const updateVisibleTrees = async () => {
   if (!map.value) return
   
   const bounds = getVisibleBounds(map.value)
@@ -209,14 +209,10 @@ const updateVisibleTrees = () => {
   // If zoomed out too far, don't show anything
   if (zoom < 8) return
 
-  // Get trees in bounds
-  const treesInBounds = trees.value.filter(tree => 
-    tree.lat >= bounds.south &&
-    tree.lat <= bounds.north &&
-    tree.lng >= bounds.west &&
-    tree.lng <= bounds.east
-  )
-
+  // Fetch trees in current bounds
+  const { fetchTrees } = useSupabase()
+  const treesInBounds = await fetchTrees(bounds)
+  
   // Apply clustering if not zoomed in enough, otherwise show individual trees
   const visibleItems = zoom >= MINIMUM_ZOOM_FOR_TREES 
     ? treesInBounds.slice(0, MAX_VISIBLE_TREES).map(tree => ({ ...tree, trees: [tree] }))
@@ -268,13 +264,7 @@ onMounted(async () => {
   await import('leaflet-routing-machine')
 
   try {
-    const { fetchTrees } = useSupabase()
-    console.log("fetching trees")
-    trees.value = await fetchTrees()
-    console.log("response", trees.value)
-
     if (!map.value) {
-      // Start much more zoomed out
       map.value = L.map('map').setView([52.520008, 13.404954], 11)
       mapInitialized.value = true
 
@@ -287,15 +277,15 @@ onMounted(async () => {
       map.value.on('moveend', debouncedUpdateTrees)
       map.value.on('zoomend', () => {
         currentZoom.value = map.value.getZoom()
+        debouncedUpdateTrees()
       })
       
       // Initial tree update
       updateVisibleTrees()
     }
   } catch (error) {
-    console.error('Error loading tree data:', error)
-    trees.value = []
-    errorMessage.value = 'Unable to load tree data. Please try again later.'
+    console.error('Error initializing map:', error)
+    errorMessage.value = 'Unable to initialize map. Please try again later.'
   }
 })
 

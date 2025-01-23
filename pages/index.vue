@@ -1,6 +1,16 @@
 <template>
   <div class="min-h-screen bg-gray-100 p-4">
     <div class="container mx-auto">
+      <!-- Add search bar -->
+      <div class="mb-4">
+        <input
+          type="text"
+          v-model="searchQuery"
+          @keyup.enter="handleSearch"
+          placeholder="Search for a location..."
+          class="w-full p-2 rounded-lg border border-gray-200 shadow-sm"
+        />
+      </div>
       <div 
         id="map" 
         class="w-full h-[600px] rounded-lg shadow-lg border border-gray-200"
@@ -21,6 +31,7 @@ import { TreeDeciduous } from 'lucide-vue-next'
 import 'leaflet/dist/leaflet.css'
 
 const map = ref(null)
+const searchQuery = ref('')
 
 // Define 5 locations near the provided coordinates
 const trees = [
@@ -30,6 +41,25 @@ const trees = [
   { lat: 52.530208, lng: 13.394954, name: 'Birch Tree', health: 3, species: 'Betula' },     // 2 km NW
   { lat: 52.510808, lng: 13.414954, name: 'Linden Tree', health: 2, species: 'Tilia' },     // 2 km SE
 ]
+
+// Add search handler function
+const handleSearch = async () => {
+  if (!searchQuery.value || !map.value) return
+  
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`
+    )
+    const data = await response.json()
+    
+    if (data && data.length > 0) {
+      const { lat, lon } = data[0]
+      map.value.setView([lat, lon], 13)
+    }
+  } catch (error) {
+    console.error('Search failed:', error)
+  }
+}
 
 onMounted(async () => {
   const L = await import('leaflet').then(m => m.default || m)

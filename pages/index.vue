@@ -34,11 +34,11 @@
 import { ref, onMounted } from 'vue'
 import { TreeDeciduous } from 'lucide-vue-next'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
 
 const map = ref(null)
 const searchQuery = ref('')
-let routeLayer = null
-
+let routingControl = null
 
 // Define 5 locations near the provided coordinates
 const trees = [
@@ -47,6 +47,12 @@ const trees = [
   { lat: 52.510008, lng: 13.394954, name: 'Pine Tree', health: 1, species: 'Pinus' },       // 2 km SW
   { lat: 52.530208, lng: 13.394954, name: 'Birch Tree', health: 3, species: 'Betula' },     // 2 km NW
   { lat: 52.510808, lng: 13.414954, name: 'Linden Tree', health: 2, species: 'Tilia' },     // 2 km SE
+  { lat: 52.520008, lng: 13.414954, name: 'Chestnut Tree', health: 1, species: 'Castanea' }, // 2 km N
+  { lat: 52.520008, lng: 13.394954, name: 'Willow Tree', health: 3, species: 'Salix' },     // 2 km S
+  { lat: 52.530008, lng: 13.404954, name: 'Beech Tree', health: 2, species: 'Fagus' },      // 2 km E
+  { lat: 52.510008, lng: 13.404954, name: 'Cedar Tree', health: 1, species: 'Cedrus' },     // 2 km W
+  { lat: 52.530208, lng: 13.414954, name: 'Poplar Tree', health: 3, species: 'Populus' },   // 2 km NE
+  { lat: 52.510808, lng: 13.394954, name: 'Spruce Tree', health: 2, species: 'Picea' },     // 2 km SW
 ]
 
 // Add search handler function
@@ -68,76 +74,126 @@ const handleSearch = async () => {
   }
 }
 
-// Simple function to calculate distance between two points
+// Add these utility functions
 const calculateDistance = (point1, point2) => {
-  const dx = point1.lat - point2.lat
-  const dy = point1.lng - point2.lng
-  return Math.sqrt(dx * dx + dy * dy)
+  // Using Haversine formula for more accurate distance calculation
+  const R = 6371 // Earth's radius in km
+  const dLat = (point2.lat - point1.lat) * Math.PI / 180
+  const dLon = (point2.lng - point1.lng) * Math.PI / 180
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
 }
 
-// Nearest neighbor algorithm for route planning
+const findNearestNeighborRoute = (trees) => {
+  const unvisited = [...trees]
+  const route = [unvisited.shift()] // Start with the first tree
+  
+  while (unvisited.length > 0) {
+    const currentPoint = route[route.length - 1]
+    let nearestIndex = 0
+    let minDistance = Infinity
+    
+    // Find the nearest unvisited tree
+    unvisited.forEach((tree, index) => {
+      const distance = calculateDistance(currentPoint, tree)
+      if (distance < minDistance) {
+        minDistance = distance
+        nearestIndex = index
+      }
+    })
+    
+    // Add the nearest tree to our route and remove it from unvisited
+    route.push(unvisited[nearestIndex])
+    unvisited.splice(nearestIndex, 1)
+  }
+  
+  return route
+}
+
+// Updated planRoute function
 const planRoute = () => {
   if (!map.value) return
   
   // Remove existing route if any
-  if (routeLayer) {
-    map.value.removeLayer(routeLayer)
+  if (routingControl) {
+    map.value.removeControl(routingControl)
   }
 
-  // Start with the first tree
-  const route = [trees[0]]
-  const unvisited = [...trees.slice(1)]
+  // Filter trees that need attention (health < 3)
+  const treesNeedingAttention = trees.filter(tree => tree.health < 3)
+  
+  // Only proceed if there are trees needing attention
+  if (treesNeedingAttention.length === 0) {
+    console.log('No trees need attention!')
+    return
+  }
 
-  // Find nearest neighbor for each point
-  while (unvisited.length > 0) {
-    const current = route[route.length - 1]
-    let nearestIdx = 0
-    let minDistance = calculateDistance(current, unvisited[0])
+  // Calculate the optimal route for trees needing attention
+  const optimizedRoute = findNearestNeighborRoute(treesNeedingAttention)
+  
+  // Create waypoints from the optimized route
+  const waypoints = optimizedRoute.map(tree => L.latLng(tree.lat, tree.lng))
 
-    // Find the nearest unvisited tree
-    unvisited.forEach((tree, idx) => {
-      const distance = calculateDistance(current, tree)
-      if (distance < minDistance) {
-        minDistance = distance
-        nearestIdx = idx
-      }
+  // Create new routing control
+  routingControl = L.Routing.control({
+    waypoints: waypoints,
+    routeWhileDragging: false,
+    showAlternatives: false,
+    fitSelectedRoutes: true,
+    createMarker: () => null, // Don't create additional markers
+    lineOptions: {
+      styles: [
+        { color: 'green', opacity: 0.7, weight: 3 }
+      ]
+    },
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1',
+      profile: 'walking'
     })
-
-    // Add nearest tree to route and remove from unvisited
-    route.push(unvisited[nearestIdx])
-    unvisited.splice(nearestIdx, 1)
-  }
-
-  // Add first tree again to complete the loop
-  route.push(route[0])
-
-  // Create a polyline for the route
-  const routeCoordinates = route.map(tree => [tree.lat, tree.lng])
-  routeLayer = L.polyline(routeCoordinates, {
-    color: 'green',
-    weight: 3,
-    opacity: 0.7,
-    dashArray: '10, 10'
   }).addTo(map.value)
 
-  // Fit map bounds to show entire route
-  map.value.fitBounds(routeLayer.getBounds(), { padding: [50, 50] })
+  // Fit bounds after route is calculated
+  routingControl.on('routesfound', function(e) {
+    const routes = e.routes
+    if (routes && routes[0]) {
+      const bounds = L.latLngBounds(routes[0].coordinates)
+      map.value.fitBounds(bounds, { padding: [50, 50] })
+      
+      // Display the total distance and number of trees in route
+      const totalDistance = routes[0].summary.totalDistance
+      const totalTime = routes[0].summary.totalTime
+      console.log(`Visiting ${treesNeedingAttention.length} trees that need attention`)
+      console.log(`Total distance: ${(totalDistance/1000).toFixed(2)} km`)
+      console.log(`Estimated time: ${Math.round(totalTime/60)} minutes`)
+    }
+  })
 }
 
 onMounted(async () => {
   const L = await import('leaflet').then(m => m.default || m)
+  await import('leaflet-routing-machine')
   
-  // Create custom tree icon using Lucide icon
-  const treeIcon = L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600">
-      <path d="M8 19h8a4 4 0 0 0 3.8-2.8 4 4 0 0 0-1.6-4.5c1-1.1 1-2.7.4-4-.7-1.2-2.2-2-3.6-1.7a3 3 0 0 0-3-3 3 3 0 0 0-3 3c-1.4-.2-2.9.5-3.6 1.7-.7 1.3-.5 2.9.4 4a4 4 0 0 0-1.6 4.5A4 4 0 0 0 8 19Z"/>
-      <path d="M12 19v3"/>
-    </svg>`,
-    className: 'tree-icon',
-    iconSize: [24, 24],
-    iconAnchor: [12, 24],
-    popupAnchor: [0, -24]
-  })
+  // Create custom tree icon function that takes health as parameter
+  const createTreeIcon = (health) => {
+    const color = health === 1 ? '#ef4444' : // red-500
+                 health === 2 ? '#eab308' : // yellow-500
+                 '#22c55e' // green-500
+    
+    return L.divIcon({
+      html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 19h8a4 4 0 0 0 3.8-2.8 4 4 0 0 0-1.6-4.5c1-1.1 1-2.7.4-4-.7-1.2-2.2-2-3.6-1.7a3 3 0 0 0-3-3 3 3 0 0 0-3 3c-1.4-.2-2.9.5-3.6 1.7-.7 1.3-.5 2.9.4 4a4 4 0 0 0-1.6 4.5A4 4 0 0 0 8 19Z"/>
+        <path d="M12 19v3"/>
+      </svg>`,
+      className: 'tree-icon',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24]
+    })
+  }
 
   // Initialize map centered on Berlin coordinates
   map.value = L.map('map').setView([52.520008, 13.404954], 15)
@@ -148,10 +204,10 @@ onMounted(async () => {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map.value)
 
-  // Add markers for each tree
+  // Add markers for each tree with health-based colors
   trees.forEach(tree => {
     const healthStatus = '❤️'.repeat(tree.health)
-    L.marker([tree.lat, tree.lng], { icon: treeIcon })
+    L.marker([tree.lat, tree.lng], { icon: createTreeIcon(tree.health) })
       .bindPopup(`
         <div class="font-bold">${tree.name}</div>
         <div>Species: ${tree.species}</div>
@@ -179,9 +235,5 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.tree-icon svg {
-  color: rgb(22 163 74); /* text-green-600 */
 }
 </style>

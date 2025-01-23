@@ -29,8 +29,8 @@ export const useSupabase = () => {
       console.log('First tree sample:', data[0])
       
       return data.map(tree => ({
-        lat: tree.latitude,
-        lng: tree.longitude,
+        lat: tree.lat,
+        lng: tree.lng,
         name: tree.name || 'Unknown Tree',
         species: tree.species || 'Unknown Species',
         health: tree.health || Math.floor(Math.random() * 3) + 1

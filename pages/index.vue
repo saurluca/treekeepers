@@ -24,11 +24,11 @@ const map = ref(null)
 
 // Define 5 locations near the provided coordinates
 const trees = [
-  { lat: 50.907672, lng: 6.900960, name: 'Oak Tree', health: 3, species: 'Quercus' },
-  { lat: 50.908672, lng: 6.902960, name: 'Maple Tree', health: 2, species: 'Acer' },
-  { lat: 50.906672, lng: 6.898960, name: 'Pine Tree', health: 1, species: 'Pinus' },
-  { lat: 50.907872, lng: 6.898960, name: 'Birch Tree', health: 3, species: 'Betula' },
-  { lat: 50.906472, lng: 6.902960, name: 'Linden Tree', health: 2, species: 'Tilia' },
+  { lat: 52.520008, lng: 13.404954, name: 'Oak Tree', health: 3, species: 'Quercus' },      // Central Berlin
+  { lat: 52.530008, lng: 13.414954, name: 'Maple Tree', health: 2, species: 'Acer' },       // 2 km NE
+  { lat: 52.510008, lng: 13.394954, name: 'Pine Tree', health: 1, species: 'Pinus' },       // 2 km SW
+  { lat: 52.530208, lng: 13.394954, name: 'Birch Tree', health: 3, species: 'Betula' },     // 2 km NW
+  { lat: 52.510808, lng: 13.414954, name: 'Linden Tree', health: 2, species: 'Tilia' },     // 2 km SE
 ]
 
 onMounted(async () => {
@@ -46,8 +46,8 @@ onMounted(async () => {
     popupAnchor: [0, -24]
   })
 
-  // Initialize map centered on Cologne coordinates
-  map.value = L.map('map').setView([50.907672, 6.900960], 15)
+  // Initialize map centered on Berlin coordinates
+  map.value = L.map('map').setView([52.520008, 13.404954], 15)
 
   // Add OpenStreetMap tile layer
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

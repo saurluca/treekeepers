@@ -1,66 +1,73 @@
 <template>
-  <div class="min-h-screen relative">
-    <!-- Chat Interface with semi-transparent background -->
-    <div class="relative min-h-screen bg-green-50/95 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl">
-        <!-- Chat messages container -->
-        <div class="bg-white/95 rounded-lg shadow-lg mb-4 p-4 h-[70vh] overflow-y-auto relative z-20">
-          <div 
-            v-for="message in displayMessages" 
-            :key="message.id" 
-            class="mb-4"
-          >
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <AppSidebar />
+    
+    <!-- Main content -->
+    <div class="flex-1 relative">
+      <!-- Chat Interface with semi-transparent background -->
+      <div class="relative min-h-screen bg-green-50/95 flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl">
+          <!-- Chat messages container -->
+          <div class="bg-white/95 rounded-lg shadow-lg mb-4 p-4 h-[70vh] overflow-y-auto relative z-20">
             <div 
-              :class="[
-                'p-3 rounded-lg max-w-[80%] prose prose-green',
-                message.role === 'user' 
-                  ? 'bg-green-100 ml-auto text-green-900' 
-                  : 'bg-green-600 text-white prose-invert'
-              ]"
+              v-for="message in displayMessages" 
+              :key="message.id" 
+              class="mb-4"
             >
-              <p class="whitespace-pre-wrap" v-html="formatMarkdown(message.content)"></p>
+              <div 
+                :class="[
+                  'p-3 rounded-lg max-w-[80%] prose prose-green',
+                  message.role === 'user' 
+                    ? 'bg-green-100 ml-auto text-green-900' 
+                    : 'bg-green-600 text-white prose-invert'
+                ]"
+              >
+                <p class="whitespace-pre-wrap" v-html="formatMarkdown(message.content)"></p>
+              </div>
+            </div>
+            <div v-if="isLoading" class="flex items-center gap-2 text-green-500">
+              <span class="animate-pulse">●</span>
+              <span class="animate-pulse delay-100">●</span>
+              <span class="animate-pulse delay-200">●</span>
             </div>
           </div>
-          <div v-if="isLoading" class="flex items-center gap-2 text-green-500">
-            <span class="animate-pulse">●</span>
-            <span class="animate-pulse delay-100">●</span>
-            <span class="animate-pulse delay-200">●</span>
-          </div>
+
+          <!-- Input form -->
+          <form @submit.prevent="sendMessage" class="flex gap-2 relative z-20">
+            <input
+              v-model="userInput"
+              type="text"
+              placeholder="Get advice on your tree route..."
+              class="flex-1 p-2 rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white/95"
+              :disabled="isLoading"
+            />
+            <button
+              type="submit"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-300"
+              :disabled="isLoading || !userInput.trim()"
+            >
+              Send
+            </button>
+          </form>
         </div>
-
-        <!-- Input form -->
-        <form @submit.prevent="sendMessage" class="flex gap-2 relative z-20">
-          <input
-            v-model="userInput"
-            type="text"
-            placeholder="Get advice on your tree route..."
-            class="flex-1 p-2 rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white/95"
-            :disabled="isLoading"
-          />
-          <button
-            type="submit"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-300"
-            :disabled="isLoading || !userInput.trim()"
-          >
-            Send
-          </button>
-        </form>
       </div>
-    </div>
 
-    <!-- Foreground Image -->
-    <div class="absolute inset-0 z-10 pointer-events-none">
-      <img 
-        src="/image.png" 
-        alt="Foreground" 
-        class="w-full h-full object-cover opacity-40"
-      />
+      <!-- Foreground Image -->
+      <div class="absolute inset-0 z-10 pointer-events-none">
+        <img 
+          src="/image.png" 
+          alt="Foreground" 
+          class="w-full h-full object-cover opacity-40"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import AppSidebar from '~/components/AppSidebar.vue'
 
 const userInput = ref('')
 const messages = ref([

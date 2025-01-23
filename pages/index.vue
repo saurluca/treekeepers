@@ -1,33 +1,39 @@
 <template>
-  <div class="min-h-screen bg-gray-100 p-4">
-    <div class="container mx-auto relative">
-      <div class="flex gap-4 mb-4">
-        <input
-          type="text"
-          v-model="searchQuery"
-          @keyup.enter="handleSearch"
-          placeholder="Search for a location..."
-          class="flex-1 p-2 rounded-lg border border-gray-200 shadow-sm"
-        />
-        <button
-          @click="handlePlanRoute"
-          class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          Plan Tree Route
-        </button>
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <AppSidebar />
+    
+    <!-- Main content -->
+    <div class="flex-1 bg-gray-100 p-4">
+      <div class="container mx-auto relative">
+        <div class="flex gap-4 mb-4">
+          <input
+            type="text"
+            v-model="searchQuery"
+            @keyup.enter="handleSearch"
+            placeholder="Search for a location..."
+            class="flex-1 p-2 rounded-lg border border-gray-200 shadow-sm"
+          />
+          <button
+            @click="handlePlanRoute"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Plan Tree Route
+          </button>
+        </div>
+        <div 
+          id="map" 
+          class="w-full h-[600px] rounded-lg shadow-lg border border-gray-200"
+        ></div>
+        <div class="absolute top-14 right-0 bg-white px-3 py-1 rounded-lg shadow-md z-[1000]">
+          Zoom: {{ currentZoom }}
+        </div>
       </div>
-      <div 
-        id="map" 
-        class="w-full h-[600px] rounded-lg shadow-lg border border-gray-200"
-      ></div>
-      <div class="absolute top-14 right-0 bg-white px-3 py-1 rounded-lg shadow-md z-[1000]">
-        Zoom: {{ currentZoom }}
-      </div>
-    </div>
-    <!-- Hidden template for tree icon -->
-    <div class="hidden">
-      <div id="tree-icon-template">
-        <TreeDeciduous class="w-6 h-6 text-green-600" />
+      <!-- Hidden template for tree icon -->
+      <div class="hidden">
+        <div id="tree-icon-template">
+          <TreeDeciduous class="w-6 h-6 text-green-600" />
+        </div>
       </div>
     </div>
   </div>
@@ -40,6 +46,7 @@ import { useTreeRoute } from '~/composables/useTreeRoute'
 import { useGeoUtils } from '~/composables/useGeoUtils'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
+import AppSidebar from '~/components/AppSidebar.vue'
 
 const map = ref(null)
 const searchQuery = ref('')

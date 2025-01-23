@@ -1,15 +1,20 @@
 <template>
   <div class="min-h-screen bg-gray-100 p-4">
     <div class="container mx-auto">
-      <!-- Add search bar -->
-      <div class="mb-4">
+      <div class="flex gap-4 mb-4">
         <input
           type="text"
           v-model="searchQuery"
           @keyup.enter="handleSearch"
           placeholder="Search for a location..."
-          class="w-full p-2 rounded-lg border border-gray-200 shadow-sm"
+          class="flex-1 p-2 rounded-lg border border-gray-200 shadow-sm"
         />
+        <button
+          @click="planRoute"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          Plan Tree Route
+        </button>
       </div>
       <div 
         id="map" 
@@ -32,6 +37,8 @@ import 'leaflet/dist/leaflet.css'
 
 const map = ref(null)
 const searchQuery = ref('')
+let routeLayer = null
+
 
 // Define 5 locations near the provided coordinates
 const trees = [
@@ -59,6 +66,62 @@ const handleSearch = async () => {
   } catch (error) {
     console.error('Search failed:', error)
   }
+}
+
+// Simple function to calculate distance between two points
+const calculateDistance = (point1, point2) => {
+  const dx = point1.lat - point2.lat
+  const dy = point1.lng - point2.lng
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+// Nearest neighbor algorithm for route planning
+const planRoute = () => {
+  if (!map.value) return
+  
+  // Remove existing route if any
+  if (routeLayer) {
+    map.value.removeLayer(routeLayer)
+  }
+
+  // Start with the first tree
+  const route = [trees[0]]
+  const unvisited = [...trees.slice(1)]
+
+  // Find nearest neighbor for each point
+  while (unvisited.length > 0) {
+    const current = route[route.length - 1]
+    let nearestIdx = 0
+    let minDistance = calculateDistance(current, unvisited[0])
+
+    // Find the nearest unvisited tree
+    unvisited.forEach((tree, idx) => {
+      const distance = calculateDistance(current, tree)
+      if (distance < minDistance) {
+        minDistance = distance
+        nearestIdx = idx
+      }
+    })
+
+    // Add nearest tree to route and remove from unvisited
+    route.push(unvisited[nearestIdx])
+    unvisited.splice(nearestIdx, 1)
+  }
+
+  // Add first tree again to complete the loop
+  route.push(route[0])
+
+  // Create a polyline for the route
+  const routeCoordinates = route.map(tree => [tree.lat, tree.lng])
+  routeLayer = L.polyline(routeCoordinates, {
+    color: 'green',
+    weight: 3,
+    opacity: 0.7,
+    dashArray: '10, 10'
+  }).addTo(map.value)
+
+  // Fit map bounds to show entire route
+  map.value.fitBounds(routeLayer.getBounds(), { padding: [50, 50] })
 }
 
 onMounted(async () => {

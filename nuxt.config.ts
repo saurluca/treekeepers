@@ -6,5 +6,24 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss', '@nuxtjs/supabase'],
   supabase: {
     redirect: false,
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY
   },
+  runtimeConfig: {
+    // Private keys that are exposed to the server
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    // Public keys that are exposed to the client
+    public: {}
+  },
+  nitro: {
+    preset: 'node-server'
+  },
+  experimental: {
+    payloadExtraction: false
+  },
+  vite: {
+    build: {
+      sourcemap: false
+    }
+  }
 })

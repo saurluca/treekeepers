@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-100 p-4">
-    <div class="container mx-auto">
+    <div class="container mx-auto relative">
       <div class="flex gap-4 mb-4">
         <input
           type="text"
@@ -20,6 +20,9 @@
         id="map" 
         class="w-full h-[600px] rounded-lg shadow-lg border border-gray-200"
       ></div>
+      <div class="absolute top-14 right-0 bg-white px-3 py-1 rounded-lg shadow-md z-[1000]">
+        Zoom: {{ currentZoom }}
+      </div>
     </div>
     <!-- Hidden template for tree icon -->
     <div class="hidden">
@@ -41,22 +44,9 @@ const searchQuery = ref('')
 let routingControl = null
 let L; // Declare L at module scope
 
-// Define 5 locations near the provided coordinates
-const trees_samples = [
-  { lat: 52.520008, lng: 13.404954, name: 'Oak Tree', health: 3, species: 'Quercus' },      // Central Berlin
-  { lat: 52.530008, lng: 13.414954, name: 'Maple Tree', health: 2, species: 'Acer' },       // 2 km NE
-  { lat: 52.510008, lng: 13.394954, name: 'Pine Tree', health: 1, species: 'Pinus' },       // 2 km SW
-  { lat: 52.530208, lng: 13.394954, name: 'Birch Tree', health: 3, species: 'Betula' },     // 2 km NW
-  { lat: 52.510808, lng: 13.414954, name: 'Linden Tree', health: 2, species: 'Tilia' },     // 2 km SE
-  { lat: 52.520008, lng: 13.414954, name: 'Chestnut Tree', health: 1, species: 'Castanea' }, // 2 km N
-  { lat: 52.520008, lng: 13.394954, name: 'Willow Tree', health: 3, species: 'Salix' },     // 2 km S
-  { lat: 52.530008, lng: 13.404954, name: 'Beech Tree', health: 2, species: 'Fagus' },      // 2 km E
-  { lat: 52.510008, lng: 13.404954, name: 'Cedar Tree', health: 1, species: 'Cedrus' },     // 2 km W
-  { lat: 52.530208, lng: 13.414954, name: 'Poplar Tree', health: 3, species: 'Populus' },   // 2 km NE
-  { lat: 52.510808, lng: 13.394954, name: 'Spruce Tree', health: 2, species: 'Picea' },     // 2 km SW
-]
-
 const trees = ref([])
+
+const currentZoom = ref(11) // Initialize with default zoom level
 
 // Add search handler function
 const handleSearch = async () => {
@@ -115,13 +105,6 @@ const findNearestNeighborRoute = (trees) => {
   }
   
   return route
-}
-
-// Add this utility function for coordinate conversion
-const convertWebMercatorToLatLng = (x, y) => {
-  const lng = (x * 180) / 20037508.34;
-  const lat = (Math.atan(Math.exp((y * Math.PI) / 20037508.34)) * 360) / Math.PI - 90;
-  return { lat, lng };
 }
 
 // Updated planRoute function
@@ -211,10 +194,166 @@ const createTreeIcon = () => {
   });
 };
 
-onMounted(async () => {
-  if (mapInitialized.value) return
+// Add these new utility functions and refs
+const currentMarkers = ref(new Set())
+const debounceTimeout = ref(null)
+
+const getVisibleBounds = (map) => {
+  const bounds = map.getBounds()
+  return {
+    north: bounds.getNorth(),
+    south: bounds.getSouth(),
+    east: bounds.getEast(),
+    west: bounds.getWest()
+  }
+}
+
+
+const MINIMUM_ZOOM_FOR_TREES = 18// Only show individual trees at zoom >= 14
+const CLUSTER_RADIUS_BASE = 20 // Increased base radius for larger clusters
+const MAX_VISIBLE_TREES = 200
+
+const pixelsToLatLng = (map, pixels, latitude) => {
+  const metersPerPixel = 156543.03392 * Math.cos(latitude * Math.PI / 180) / Math.pow(2, map.getZoom())
+  return (pixels * metersPerPixel) / 111320 // Convert to approximate degrees
+}
+
+const clusterTrees = (trees, map) => {
+  if (!trees.length) return []
   
-  // Assign L to module scope
+  const zoom = map.getZoom()
+  const clusters = []
+  const processed = new Set()
+  
+  // Adjust cluster radius based on zoom (much larger radius when zoomed out)
+  const clusterRadius = pixelsToLatLng(
+    map, 
+    CLUSTER_RADIUS_BASE * (140 - zoom), // Exponentially larger clusters at lower zoom
+    map.getCenter().lat
+  )
+
+  trees.forEach((tree, index) => {
+    if (processed.has(index)) return
+
+    const cluster = {
+      lat: tree.lat,
+      lng: tree.lng,
+      trees: [tree],
+      health: tree.health
+    }
+
+    // Find nearby trees
+    trees.forEach((otherTree, otherIndex) => {
+      if (index === otherIndex || processed.has(otherIndex)) return
+
+      const distance = calculateDistance(
+        { lat: tree.lat, lng: tree.lng },
+        { lat: otherTree.lat, lng: otherTree.lng }
+      )
+
+      if (distance <= clusterRadius) {
+        cluster.trees.push(otherTree)
+        // Update cluster center
+        cluster.lat = cluster.trees.reduce((sum, t) => sum + t.lat, 0) / cluster.trees.length
+        cluster.lng = cluster.trees.reduce((sum, t) => sum + t.lng, 0) / cluster.trees.length
+        // Update cluster health (average)
+        cluster.health = Math.round(cluster.trees.reduce((sum, t) => sum + t.health, 0) / cluster.trees.length)
+        processed.add(otherIndex)
+      }
+    })
+
+    clusters.push(cluster)
+    processed.add(index)
+  })
+
+  return clusters
+}
+
+const createClusterIcon = () => {
+  if (!L) return null
+  return (cluster) => L.divIcon({
+    html: `<div class="cluster-icon" style="background-color: ${
+      cluster.health === 3 ? '#16a34a' : 
+      cluster.health === 2 ? '#ca8a04' : '#dc2626'
+    }">
+      <div class="cluster-icon-inner">
+        ${cluster.trees.length}
+      </div>
+    </div>`,
+    className: 'tree-cluster-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  })
+}
+
+const updateVisibleTrees = () => {
+  if (!map.value) return
+  
+  const bounds = getVisibleBounds(map.value)
+  const zoom = map.value.getZoom()
+  
+  // Remove existing markers
+  currentMarkers.value.forEach(marker => marker.remove())
+  currentMarkers.value.clear()
+
+  // If zoomed out too far, don't show anything
+  if (zoom < 8) return
+
+  // Get trees in bounds
+  const treesInBounds = trees.value.filter(tree => 
+    tree.lat >= bounds.south &&
+    tree.lat <= bounds.north &&
+    tree.lng >= bounds.west &&
+    tree.lng <= bounds.east
+  )
+
+  // Apply clustering if not zoomed in enough, otherwise show individual trees
+  const visibleItems = zoom >= MINIMUM_ZOOM_FOR_TREES 
+    ? treesInBounds.slice(0, MAX_VISIBLE_TREES).map(tree => ({ ...tree, trees: [tree] }))
+    : clusterTrees(treesInBounds, map.value)
+
+  const treeIconFactory = createTreeIcon()
+  const clusterIconFactory = createClusterIcon()
+  
+  // Add new markers
+  visibleItems.forEach(item => {
+    const isCluster = item.trees.length > 1
+    const marker = L.marker(
+      [item.lat, item.lng], 
+      { icon: isCluster ? clusterIconFactory(item) : treeIconFactory(item.health) }
+    )
+
+    if (isCluster) {
+      marker.bindPopup(`
+        <div class="font-bold">Tree Cluster</div>
+        <div>Trees in cluster: ${item.trees.length}</div>
+        <div>Average health: ${'❤️'.repeat(item.health)}</div>
+        <div class="text-sm text-gray-600">Zoom in to see individual trees</div>
+      `)
+    } else {
+      const tree = item.trees[0]
+      marker.bindPopup(`
+        <div class="font-bold">${tree.name}</div>
+        <div>Species: ${tree.species}</div>
+        <div>Health: ${'❤️'.repeat(tree.health)}</div>
+      `)
+    }
+    
+    marker.addTo(map.value)
+    currentMarkers.value.add(marker)
+  })
+}
+
+const debouncedUpdateTrees = () => {
+  if (debounceTimeout.value) {
+    clearTimeout(debounceTimeout.value)
+  }
+  debounceTimeout.value = setTimeout(updateVisibleTrees, 250)
+}
+
+onMounted(async () => {
+  if (mapInitialized.value) return  // Prevent multiple initializations
+  
   L = await import('leaflet').then(m => m.default || m)
   await import('leaflet-routing-machine')
 
@@ -223,50 +362,33 @@ onMounted(async () => {
     const response = await fetch('/data/tree.geojson')
     const geojsonData = await response.json()
     
-    // Create the icon factory after L is loaded
-    const treeIconFactory = createTreeIcon()
+    // Transform features into tree format, limited to 4000 trees
+    trees.value = geojsonData.features.slice(0, 1000).map(feature => ({
+      lat: feature.geometry.coordinates[1],
+      lng: feature.geometry.coordinates[0],
+      name: feature.properties.art_deutsch || 'Unknown Tree',
+      species: feature.properties.art_bot || 'Unknown Species',
+      health: Math.floor(Math.random() * 3) + 1
+    }))
 
-    console.log(geojsonData.features.slice(0, 500))
-    
-    // Transform features into tree format
-    trees.value = geojsonData.features
-      .slice(0, 500)
-      .map(feature => {
-        return {
-          lat: feature.geometry.coordinates[1],
-          lng: feature.geometry.coordinates[0],
-          name: feature.properties.art_deutsch || 'Unknown Tree',
-          species: feature.properties.art_bot || 'Unknown Species',
-          health: Math.floor(Math.random() * 3) + 1
-        };
-      })
-    // console.log(trees.value)
-    // Initialize map only if it hasn't been initialized yet
     if (!map.value) {
-      map.value = L.map('map').setView([52.520008, 13.404954], 15)
+      // Start much more zoomed out
+      map.value = L.map('map').setView([52.520008, 13.404954], 11)
       mapInitialized.value = true
 
-      // Add OpenStreetMap tile layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(map.value)
 
-      // Add markers for each tree
-      trees.value.forEach(tree => {
-        const healthStatus = '❤️'.repeat(tree.health)
-        L.marker([tree.lat, tree.lng], { icon: treeIconFactory(tree.health) })
-          .bindPopup(`
-            <div class="font-bold">${tree.name}</div>
-            <div>Species: ${tree.species}</div>
-            <div>Health: ${healthStatus}</div>
-          `)
-          .bindTooltip(`Health: ${healthStatus}`, {
-            permanent: false,
-            direction: 'top'
-          })
-          .addTo(map.value)
+      // Add event listeners for map movement
+      map.value.on('moveend', debouncedUpdateTrees)
+      map.value.on('zoomend', () => {
+        currentZoom.value = map.value.getZoom()
       })
+      
+      // Initial tree update
+      updateVisibleTrees()
     }
   } catch (error) {
     console.error('Error loading tree data:', error)
@@ -274,12 +396,16 @@ onMounted(async () => {
   }
 })
 
-// Add cleanup on component unmount
+// Update cleanup
 onUnmounted(() => {
   if (map.value) {
+    if (debounceTimeout.value) {
+      clearTimeout(debounceTimeout.value)
+    }
+    currentMarkers.value.forEach(marker => marker.remove())
     map.value.remove()
     map.value = null
-    mapInitialized.value = false
+    mapInitialized.value = false  // Reset initialization flag
   }
 })
 </script>

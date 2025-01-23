@@ -46,6 +46,7 @@ const searchQuery = ref('')
 let L
 const trees = ref([])
 const currentZoom = ref(11)
+const errorMessage = ref('')
 
 // Initialize the route planning composable
 const { planRoute } = useTreeRoute(map)
@@ -267,18 +268,10 @@ onMounted(async () => {
   await import('leaflet-routing-machine')
 
   try {
-    // Load and process GeoJSON data
-    const response = await fetch('/data/tree.geojson')
-    const geojsonData = await response.json()
-    
-    // Transform features into tree format, limited to 4000 trees
-    trees.value = geojsonData.features.slice(0, 1000).map(feature => ({
-      lat: feature.geometry.coordinates[1],
-      lng: feature.geometry.coordinates[0],
-      name: feature.properties.art_deutsch || 'Unknown Tree',
-      species: feature.properties.art_bot || 'Unknown Species',
-      health: Math.floor(Math.random() * 3) + 1
-    }))
+    const { fetchTrees } = useSupabase()
+    console.log("fetching trees")
+    trees.value = await fetchTrees()
+    console.log("response", trees.value)
 
     if (!map.value) {
       // Start much more zoomed out
@@ -302,6 +295,7 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error loading tree data:', error)
     trees.value = []
+    errorMessage.value = 'Unable to load tree data. Please try again later.'
   }
 })
 

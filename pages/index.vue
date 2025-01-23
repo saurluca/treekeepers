@@ -10,7 +10,7 @@
           class="flex-1 p-2 rounded-lg border border-gray-200 shadow-sm"
         />
         <button
-          @click="planRoute"
+          @click="handlePlanRoute"
           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
         >
           Plan Tree Route
@@ -36,17 +36,22 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { TreeDeciduous } from 'lucide-vue-next'
+import { useTreeRoute } from '~/composables/useTreeRoute'
+import { useGeoUtils } from '~/composables/useGeoUtils'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
 
 const map = ref(null)
 const searchQuery = ref('')
-let routingControl = null
-let L; // Declare L at module scope
-
+let L
 const trees = ref([])
+const currentZoom = ref(11)
 
-const currentZoom = ref(11) // Initialize with default zoom level
+// Initialize the route planning composable
+const { planRoute } = useTreeRoute(map)
+
+// Add this after other const declarations
+const { calculateDistance } = useGeoUtils()
 
 // Add search handler function
 const handleSearch = async () => {
@@ -67,104 +72,8 @@ const handleSearch = async () => {
   }
 }
 
-// Add these utility functions
-const calculateDistance = (point1, point2) => {
-  // Using Haversine formula for more accurate distance calculation
-  const R = 6371 // Earth's radius in km
-  const dLat = (point2.lat - point1.lat) * Math.PI / 180
-  const dLon = (point2.lng - point1.lng) * Math.PI / 180
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return R * c
-}
-
-const findNearestNeighborRoute = (trees) => {
-  const unvisited = [...trees]
-  const route = [unvisited.shift()] // Start with the first tree
-  
-  while (unvisited.length > 0) {
-    const currentPoint = route[route.length - 1]
-    let nearestIndex = 0
-    let minDistance = Infinity
-    
-    // Find the nearest unvisited tree
-    unvisited.forEach((tree, index) => {
-      const distance = calculateDistance(currentPoint, tree)
-      if (distance < minDistance) {
-        minDistance = distance
-        nearestIndex = index
-      }
-    })
-    
-    // Add the nearest tree to our route and remove it from unvisited
-    route.push(unvisited[nearestIndex])
-    unvisited.splice(nearestIndex, 1)
-  }
-  
-  return route
-}
-
-// Updated planRoute function
-const planRoute = () => {
-  if (!map.value) return
-  
-  // Remove existing route if any
-  if (routingControl) {
-    map.value.removeControl(routingControl)
-  }
-
-  // Filter trees that need attention (health < 3)
-  const treesNeedingAttention = trees.value.filter(tree => tree.health < 3)
-  
-  // Only proceed if there are trees needing attention
-  if (treesNeedingAttention.length === 0) {
-    console.log('No trees need attention!')
-    return
-  }
-
-  // Calculate the optimal route for trees needing attention
-  const optimizedRoute = findNearestNeighborRoute(treesNeedingAttention)
-  
-  // Create waypoints from the optimized route
-  const waypoints = optimizedRoute.map(tree => L.latLng(tree.lat, tree.lng))
-
-  // Create new routing control
-  routingControl = L.Routing.control({
-    waypoints: waypoints,
-    routeWhileDragging: false,
-    showAlternatives: false,
-    fitSelectedRoutes: true,
-    createMarker: () => null, // Don't create additional markers
-    lineOptions: {
-      styles: [
-        { color: 'green', opacity: 0.7, weight: 3 }
-      ]
-    },
-    router: L.Routing.osrmv1({
-      serviceUrl: 'https://router.project-osrm.org/route/v1',
-      profile: 'walking'
-    })
-  }).addTo(map.value)
-
-  // Fit bounds after route is calculated
-  routingControl.on('routesfound', function(e) {
-    const routes = e.routes
-    if (routes && routes[0]) {
-      const bounds = L.latLngBounds(routes[0].coordinates)
-      map.value.fitBounds(bounds, { padding: [50, 50] })
-      
-      // Display the total distance and number of trees in route
-      const totalDistance = routes[0].summary.totalDistance
-      const totalTime = routes[0].summary.totalTime
-      console.log(`Visiting ${treesNeedingAttention.length} trees that need attention`)
-      console.log(`Total distance: ${(totalDistance/1000).toFixed(2)} km`)
-      console.log(`Estimated time: ${Math.round(totalTime/60)} minutes`)
-    }
-  })
-}
+// Update the button click handler to pass L to planRoute
+const handlePlanRoute = () => planRoute(trees, L)
 
 // Add cleanup ref
 const mapInitialized = ref(false)

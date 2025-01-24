@@ -7,23 +7,25 @@
     <div class="flex-1 bg-gray-100 p-4">
       <div class="container mx-auto">
         <h1 class="text-3xl font-bold mb-4">Statistics</h1>
-        <p>Welcome to the statistics page</p>
+        <p> </p>
         <div class="overflow-auto">
           <table class="min-w-full bg-white">
             <thead>
               <tr>
                 <th class="py-2 px-4 border-b">Coordinates</th>
-                <th class="py-2 px-4 border-b">Rating</th>
+                <th class="py-2 px-4 border-b">Health</th>
                 <th class="py-2 px-4 border-b">Actions</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="tree in trees" :key="tree.id">
                 <tr>
-                  <td class="py-2 px-4 border-b">{{ tree.lat }}  :  {{ tree.lng }}</td>
-                  <td class="py-2 px-4 border-b">{{ tree.health }}</td>
-                  <td class="py-2 px-4 border-b">
-                    <button @click="toggleDetails(tree.id)">Toggle Details</button>
+                  <td class="py-2 px-4 border-b text-center">{{ formatCoordinates(tree.lat, tree.lng) }}</td>
+                  <td class="py-2 px-4 border-b text-center">
+                    <span :class="healthClass(tree.health)" class="px-4 py-1 rounded text-black" :style="{ backgroundColor: healthBackgroundColor(tree.health) }">{{ tree.health }}</span>
+                  </td>
+                  <td class="py-2 px-4 border-b text-center">
+                    <button class="bg-gray-200 text-gray-700 py-1 px-3 rounded hover:bg-gray-300" @click="toggleDetails(tree.id)">Toggle Details</button>
                   </td>
                 </tr>
                 <tr v-if="expandedTreeId !== null && expandedTreeId === tree.id" class="bg-white">
@@ -37,9 +39,9 @@
                         <div class="h-64 bg-gray-300">Diagram Placeholder</div>
                       </div>
                       <div class="w-1/3 flex flex-col items-center justify-center space-y-2">
-                        <button class="bg-green-500 text-white py-2 px-4 rounded" @click="markTreeOk(tree.id)">Visited and Tree is OK</button>
-                        <button class="bg-yellow-500 text-white py-2 px-4 rounded" @click="markTreeNeedsHelp(tree.id)">Visited and Tree Still Needs Help</button>
-                        <button class="bg-blue-500 text-white py-2 px-4 rounded" @click="planRoute(tree.id)">Plan Route</button>
+                        <button class="bg-green-500 text-white py-2 px-4 rounded w-full" @click="markTreeOk(tree.id)">Visited and Tree is OK</button>
+                        <button class="bg-yellow-500 text-white py-2 px-4 rounded w-full" @click="markTreeNeedsHelp(tree.id)">Visited and Tree Still Needs Help</button>
+                        <button class="bg-blue-500 text-white py-2 px-4 rounded w-full" @click="planRoute(tree.lat, tree.lng)">Plan Route</button>
                       </div>
                     </div>
                   </td>
@@ -126,9 +128,23 @@ function markTreeNeedsHelp(treeId) {
   // Add your logic here
 }
 
-function planRoute(treeId) {
-  console.log(`Planning route to tree ${treeId}`)
-  // Add your logic here
+function planRoute(lat, lng) {
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+  window.open(url, '_blank')
+}
+
+function formatCoordinates(lat, lng) {
+  return `${lat.toFixed(4)} : ${lng.toFixed(4)}`
+}
+
+function healthClass(health) {
+  return {
+    'text-black': true
+  }
+}
+
+function healthBackgroundColor(health) {
+  return health === 3 ? '#16a34a' : health === 2 ? '#ca8a04' : '#dc2626'
 }
 </script>
 

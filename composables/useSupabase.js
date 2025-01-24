@@ -92,9 +92,11 @@ export const useSupabase = () => {
 
   const fetchTrees = async (bounds, zoom) => {
     try {
+      // Set longer timeout for this specific query
+
       console.log('Fetching tree clusters within bounds:', bounds, 'at zoom:', zoom)
 
-      // For zoom level 18 or above, fetch trees directly with their latest NDVI
+      // Individual trees only at very high zoom
       if (zoom >= 18) {
         const { data, error } = await client
           .from('trees2')
@@ -112,7 +114,7 @@ export const useSupabase = () => {
           .gte('lng', bounds.west)
           .lte('lng', bounds.east)
           .order('id')
-          .limit(1000)
+          .limit(200)
 
         if (error) {
           console.error('Supabase error:', error.message)
@@ -138,16 +140,28 @@ export const useSupabase = () => {
         }))
       }
 
-      // Adjusted gridSize based on zoom level - made more granular
-      let gridSize = zoom <= 10 ? 0.02 :    // ~2km
-                    zoom <= 12 ? 0.01 :     // ~1km
-                    zoom <= 14 ? 0.005 :    // ~500m
-                    zoom <= 16 ? 0.002 :    // ~200m
-                    0.001;                  // ~100m
+      // Increased grid sizes for larger clusters
+      let gridSize = zoom <= 10 ? 1 :    // 4x larger
+                    zoom <= 12 ? 0.5 :    // 4x larger
+                    zoom <= 14 ? 0.02 :    // 4x larger
+                    zoom <= 15 ? 0.005 :    // 4x larger
+                    zoom <= 16 ? 0.0025 :    // 5x larger
+                    0.001;                 // 5x larger
+
+      // Increased target sizes
+      let targetSize = zoom <= 10 ? 2000 :  // 4x larger
+                      zoom <= 12 ? 1000 :   // 4x larger
+                      zoom <= 14 ? 500 :    // 5x larger
+                      zoom <= 15 ? 250 :    // 5x larger
+                      zoom <= 16 ? 100 :    // 4x larger
+                      50;                   // 5x larger
+
+      let minSamples = 2;
 
       const { data, error } = await client.rpc('update_tree_clustering', {
         distance_threshold: gridSize,
-        min_samples: 2,
+        min_samples: minSamples,
+        target_size: targetSize,
         min_lat: bounds.south,
         max_lat: bounds.north,
         min_lng: bounds.west,

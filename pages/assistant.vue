@@ -91,6 +91,10 @@ When discussing routes, consider:
 
 be concise and to the point.
 
+Ask if the person wants to plan a route.
+if they do, ask them for how much time they have, if they want to focus on a specific area, and if they want to focus on the trees with worst health.
+redirect them to the statistics page, where they can see the tree health indicators and inspect individual trees.
+
 Keep responses focused on trees, routes, and Berlin's urban environment.
 Use markdown formatting for emphasis: **bold** for important points, *italic* for species names.`
 

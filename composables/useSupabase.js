@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
-const THRESHOLD_VERY_BAD = 0.33
-const THRESHOLD_BAD = 0.66
+const THRESHOLD_VERY_BAD = 0.22
+const THRESHOLD_BAD = 0.3
 const THRESHOLD_GOOD = 1
 
 export const useSupabase = () => {

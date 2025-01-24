@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <AppSidebar />
+    <AppSidebar class="z-30" />
     
     <!-- Main content -->
     <div class="flex-1 bg-gray-100 p-4">

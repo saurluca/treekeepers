@@ -53,16 +53,19 @@
               <span v-if="!isCollapsed" class="text-base">About</span>
             </NuxtLink>
           </li>
+          <!-- Toggle button moved inside nav list -->
+          <li>
+            <button 
+              @click="isCollapsed = !isCollapsed"
+              class="w-full flex items-center px-5 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              :class="{ 'justify-center': isCollapsed }"
+            >
+              <ChevronLeft v-if="!isCollapsed" class="w-5 h-5" />
+              <ChevronRight v-else class="w-5 h-5" />
+            </button>
+          </li>
         </ul>
       </nav>
-      <!-- Chevron button at the bottom of the sidebar -->
-      <button 
-        @click="isCollapsed = !isCollapsed"
-        class="bg-white rounded-full p-1 hover:bg-gray-50 absolute bottom-4 w-full"
-      >
-        <ChevronLeft v-if="!isCollapsed" class="w-5 h-5 mx-auto" />
-        <ChevronRight v-else class="w-5 h-5 mx-auto" />
-      </button>
     </div>
   </div>
 </template>

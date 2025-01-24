@@ -19,3 +19,10 @@ onMounted(() => {
 <style scoped>
 /* No additional styles needed for this simple page */
 </style>
+CREATE TABLE tree_measurements (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tree_id UUID REFERENCES trees(id),
+  ndvi DOUBLE PRECISION,
+  measured_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(tree_id, measured_at)
+);

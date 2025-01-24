@@ -7,8 +7,7 @@
     <div class="flex-1 bg-gray-100 p-4 relative">
       <div class="container mx-auto relative">
         <!-- Search container - responsive width -->
-        <div class="flex gap-2 sm:gap-4 mb-4 w-full max-w-screen-lg transition-all duration-300 relative z-10"
-             :style="{ width: `${searchBarWidth}%` }">
+        <div class="flex gap-2 sm:gap-4 mb-4 w-full transition-all duration-300 relative z-10">
           <input
             type="text"
             v-model="searchQuery"

@@ -4,14 +4,6 @@ const THRESHOLD_VERY_BAD = 0.002
 const THRESHOLD_BAD = 0.01
 const THRESHOLD_GOOD = 0.2
 
-// Define zoom level thresholds for different clustering granularity
-const ZOOM_LEVELS = {
-  CITY: 11,
-  DISTRICT: 14,
-  STREET: 16,
-  INDIVIDUAL: 18
-}
-
 export const useSupabase = () => {
   const client = useSupabaseClient()
 
@@ -20,7 +12,7 @@ export const useSupabase = () => {
       console.log('Fetching tree clusters within bounds:', bounds, 'at zoom:', zoom)
 
       // For zoom level 18 or above, fetch trees directly from the trees table
-      if (zoom >= 16) {
+      if (zoom >= 18) {
         const { data, error } = await client
           .from('trees')
           .select('lat, lng, ndvi')
@@ -57,7 +49,7 @@ export const useSupabase = () => {
       zoom <= 12 ? 0.05 : 
       zoom <= 14 ? 0.02 : 
       zoom <= 16 ? 0.005 : 
-      0.001;
+      0.002;
 
       const { data, error } = await client.rpc('get_tree_clusters', {
         min_lat: bounds.south,

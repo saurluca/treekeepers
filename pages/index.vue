@@ -163,6 +163,7 @@ const updateVisibleTrees = async () => {
     } else {
       marker.bindPopup(`
         <div class="font-bold">Tree</div>
+        <div>NDVI: ${item.ndvi}</div>
         <div>Health: ${'❤️'.repeat(item.health)}</div>
       `)
     }

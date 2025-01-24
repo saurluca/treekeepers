@@ -180,20 +180,36 @@ const debouncedUpdateTrees = () => {
   debounceTimeout.value = setTimeout(updateVisibleTrees, 250)
 }
 
+// const createClusterIcon = () => {
+//   if (!L) return null
+//   return (cluster) => L.divIcon({
+//     html: `<div class="cluster-icon rounded-full" style="background-color: ${
+//       cluster.health === 3 ? '#16a34a' : 
+//       cluster.health === 2 ? '#ca8a04' : '#dc2626'
+//     }">
+// //       <div class="cluster-icon-inner">
+// //         ${cluster.treeCount}
+// //       </div>
+// //     </div>`,
+//     iconSize: [40, 40],
+//     iconAnchor: [20, 20],
+//     popupAnchor: [0, -20]
+//   })
+// }
+
 const createClusterIcon = () => {
   if (!L) return null
   return (cluster) => L.divIcon({
-    html: `<div class="cluster-icon" style="background-color: ${
+    html: `<div class="cluster-icon rounded-full" style="background-color: ${
       cluster.health === 3 ? '#16a34a' : 
       cluster.health === 2 ? '#ca8a04' : '#dc2626'
     }">
-      <div class="cluster-icon-inner">
-        ${cluster.treeCount}
-      </div>
-    </div>`,
-    className: 'tree-cluster-icon',
-    iconSize: [40, 30],
-    iconAnchor: [20, 20]
+            <span class="text-sm font-bold">${cluster.treeCount}</span>
+          </div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+    className: 'no-background'  // Added class to remove white background
   })
 }
 
@@ -259,15 +275,13 @@ onUnmounted(() => {
 }
 
 .tree-cluster-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: none;  /* Remove any background */
 }
 
 .cluster-icon {
   width: 40px;
-  height: 30px;
-  border-radius: 15px;
+  height: 40px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,5 +292,6 @@ onUnmounted(() => {
 
 .cluster-icon-inner {
   font-size: 14px;
+  border-radius: 50%;
 }
 </style>

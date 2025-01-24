@@ -92,8 +92,31 @@
                           
                           <!-- Tree Measurements Chart -->
                           <div class="bg-white rounded-lg shadow-md p-4 col-span-2">
-                            <h3 class="font-semibold text-green-800 mb-4">Tree Measurements Over Time</h3>
-                            <canvas :id="'chart-' + tree.id"></canvas>
+                            <h3 class="font-semibold text-green-800 mb-2 text-sm">Tree Measurements Over Time</h3>
+                            <div class="h-48">
+                              <canvas :id="'chart-' + tree.id"></canvas>
+                            </div>
+                            <!-- Action Buttons -->
+                            <div class="flex gap-2 mt-2 justify-between">
+                              <button 
+                                @click="markTreeOk(tree.id)"
+                                class="px-2 py-1 bg-green-600 text-white text-base rounded-lg hover:bg-green-700 transition-colors"
+                              >
+                                Mark as OK
+                              </button>
+                              <button 
+                                @click="markTreeNeedsHelp(tree.id)"
+                                class="px-2 py-1 bg-yellow-600 text-white text-base rounded-lg hover:bg-yellow-700 transition-colors"
+                              >
+                                Needs Help
+                              </button>
+                              <button 
+                                @click="planRoute(tree.lat, tree.lng)"
+                                class="px-2 py-1 bg-blue-600 text-white text-base rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                Plan Route
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -167,7 +190,7 @@ const containerHeight = computed(() => {
 })
 
 const searchBarHeight = computed(() => {
-  return windowHeight.value < 800 ? 8 : 10
+  return windowHeight.value < 800 ? 5 : 7
 })
 
 const tableHeight = computed(() => {
@@ -220,7 +243,7 @@ onMounted(async () => {
 
 watch(expandedTreeId, async (newId) => {
   if (newId !== null && trees.value.length > 0) {
-    await nextTick() // Ensure the DOM is updated
+    await nextTick()
     const tree = trees.value.find(t => t.id === newId)
     if (tree) {
       const map = L.map(`map-${tree.id}`).setView([tree.lat, tree.lng], 35) // Zoom in more
@@ -231,15 +254,18 @@ watch(expandedTreeId, async (newId) => {
       const treeIcon = createTreeIcon()
       L.marker([tree.lat, tree.lng], { icon: treeIcon(tree.health) }).addTo(map)
 
-      // Create chart
+      console.log("measurements", tree.measurements)
+      // Create chart with fixed data handling
       const ctx = document.getElementById(`chart-${tree.id}`).getContext('2d')
       new Chart(ctx, {
         type: 'line',
         data: {
-          labels: tree.measurements.map(m => new Date(m.measurement_date).toLocaleDateString()),
           datasets: [{
             label: 'NDVI',
-            data: tree.measurements.map(m => m.ndvi),
+            data: tree.measurements.map(m => ({
+              x: new Date(m.measurement_date),
+              y: m.ndvi
+            })),
             borderColor: 'rgba(75, 192, 192, 1)',
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             fill: true,
@@ -252,7 +278,10 @@ watch(expandedTreeId, async (newId) => {
             x: {
               type: 'time',
               time: {
-                unit: 'month'
+                unit: 'month',
+                displayFormats: {
+                  month: 'MMM yyyy'
+                }
               },
               title: {
                 display: true,
@@ -263,7 +292,9 @@ watch(expandedTreeId, async (newId) => {
               title: {
                 display: true,
                 text: 'NDVI'
-              }
+              },
+              min: -0.1,
+              max: 1
             }
           }
         }

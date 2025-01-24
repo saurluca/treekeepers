@@ -131,14 +131,9 @@ const trees = ref([])
 const expandedTreeId = ref(null)
 let L
 
-<<<<<<< HEAD
 // Register Chart.js components
 Chart.register(...registerables)
 
-// Responsive sizing
-=======
-// Screen size computations
->>>>>>> 842236f8edbdcd10de8a6404147742fe5b496512
 const windowWidth = ref(window.innerWidth)
 const windowHeight = ref(window.innerHeight)
 

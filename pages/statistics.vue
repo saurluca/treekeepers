@@ -9,37 +9,43 @@
       <div class="relative min-h-screen bg-green-50/95 flex flex-col p-2 pt-12 lg:pt-2">
         <div class="w-full max-w-3xl lg:ml-64 flex flex-col">
           <!-- Main container with dynamic sizing -->
-          <div class="bg-white/95 rounded-lg shadow-lg mb-2 p-3 overflow-y-auto relative z-10"
+          <div class="bg-white/95 rounded-lg shadow-lg mb-2 p-3 overflow-hidden relative z-10"
                :style="{
                  width: containerWidth,
-                 height: `${containerHeight}vh`,
+                 minHeight: `${containerHeight}vh`,
                  fontSize: `${baseFontSize}px`
                }">
-            <h1 class="text-2xl sm:text-3xl font-bold text-green-800 mb-3">Tree Health Statistics</h1>
+            <!-- Header -->
+            <div class="mb-3">
+              <h1 class="text-2xl sm:text-3xl font-bold text-green-800">Tree Health Statistics</h1>
+            </div>
             
-            <!-- Search and Filter Bar -->
-            <div class="flex flex-col sm:flex-row gap-2 mb-3"
-                 :style="{ height: `${searchBarHeight}vh` }">
-              <input
-                type="text"
-                placeholder="Search by coordinates..."
-                class="flex-1 p-1.5 rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                :style="{ fontSize: `${inputFontSize}px` }"
-              />
-              <select 
-                class="p-1.5 rounded-lg border border-green-200 shadow-sm"
-                :style="{ fontSize: `${inputFontSize}px` }"
-              >
-                <option value="all">All Health Levels</option>
-                <option value="3">Healthy (3)</option>
-                <option value="2">Moderate (2)</option>
-                <option value="1">Poor (1)</option>
-              </select>
+            <!-- Search and Filter Bar - fixed height -->
+            <div class="flex flex-col sm:flex-row gap-2 mb-3">
+              <div class="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by coordinates..."
+                  class="w-full p-2 rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  :style="{ fontSize: `${inputFontSize}px` }"
+                />
+              </div>
+              <div>
+                <select 
+                  class="w-full sm:w-[160px] p-2 rounded-lg border border-green-200 shadow-sm"
+                  :style="{ fontSize: `${inputFontSize}px` }"
+                >
+                  <option value="all">All Health Levels</option>
+                  <option value="3">Healthy (3)</option>
+                  <option value="2">Moderate (2)</option>
+                  <option value="1">Poor (1)</option>
+                </select>
+              </div>
             </div>
 
             <!-- Table Container -->
             <div class="overflow-auto rounded-lg shadow"
-                 :style="{ height: `${tableHeight}vh` }">
+                 :style="{ height: `calc(${tableHeight}vh)` }">
               <table class="min-w-full bg-white">
                 <thead class="bg-green-50">
                   <tr>
@@ -189,12 +195,16 @@ const containerHeight = computed(() => {
   return windowHeight.value < 800 ? 85 : 90
 })
 
-const searchBarHeight = computed(() => {
-  return windowHeight.value < 800 ? 5 : 7
+const headerHeight = computed(() => {
+  return windowHeight.value < 800 ? 6 : 8
 })
 
-const tableHeight = computed(() => {
-  return windowHeight.value < 800 ? 65 : 70
+const searchBarHeight = computed(() => {
+  return windowHeight.value < 800 ? 5 : 6
+})
+
+const selectWidth = computed(() => {
+  return Math.min(200, windowWidth.value * 0.2)
 })
 
 const baseFontSize = computed(() => {
@@ -207,6 +217,16 @@ const inputFontSize = computed(() => {
 
 const tableFontSize = computed(() => {
   return Math.max(12, Math.min(14, windowWidth.value / 90))
+})
+
+const tableHeight = computed(() => {
+  const screenHeight = windowHeight.value
+  if (screenHeight < 600) {
+    return 50 // Smaller screens
+  } else if (screenHeight > 1200) {
+    return 70 // Larger screens
+  }
+  return 60 // Default
 })
 
 const createTreeIcon = () => {
@@ -436,6 +456,63 @@ input, select, table {
   h1 {
     font-size: max(20px, 5vw) !important;
   }
+}
+
+/* Ensure proper spacing in table */
+td, th {
+  padding: clamp(0.5rem, 1vw, 1rem);
+}
+
+/* Adjust select width on different screen sizes */
+@media (max-width: 640px) {
+  select {
+    width: 100%;
+  }
+}
+
+@media (min-width: 641px) {
+  select {
+    width: 160px; /* Fixed width on larger screens */
+  }
+}
+
+/* Ensure proper spacing between stacked elements */
+.flex-col > * + * {
+  margin-top: 0.5rem;
+}
+
+/* Remove margin top on horizontal layout */
+@media (min-width: 640px) {
+  .sm\:flex-row > * + * {
+    margin-top: 0;
+  }
+}
+
+/* Update container transitions */
+.bg-white\/95 {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ensure smooth height transitions */
+.overflow-auto {
+  transition: height 0.3s ease-in-out;
+}
+
+/* Ensure proper spacing and prevent overlap */
+.flex-col > * {
+  flex-shrink: 0;
+}
+
+/* Fixed height for select on mobile */
+@media (max-width: 640px) {
+  select {
+    height: 40px;
+  }
+}
+
+/* Prevent container from collapsing */
+.overflow-hidden {
+  min-height: 400px;
 }
 </style>
 

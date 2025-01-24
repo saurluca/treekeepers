@@ -19,14 +19,16 @@ export const useSupabase = () => {
     try {
       console.log('Fetching tree clusters within bounds:', bounds, 'at zoom:', zoom)
 
-      // Check if zoom level is INDIVIDUAL
-      if (zoom === ZOOM_LEVELS.INDIVIDUAL) {
-        const { data, error } = await client.rpc('get_individual_trees', {
-          min_lat: bounds.south,
-          max_lat: bounds.north,
-          min_lng: bounds.west,
-          max_lng: bounds.east
-        })
+      // For zoom level 18 or above, fetch trees directly from the trees table
+      if (zoom >= 16) {
+        const { data, error } = await client
+          .from('trees')
+          .select('lat, lng, ndvi')
+          .gte('lat', bounds.south)
+          .lte('lat', bounds.north)
+          .gte('lng', bounds.west)
+          .lte('lng', bounds.east)
+          .limit(1000)
 
         if (error) {
           console.error('Supabase error:', error.message)
@@ -34,7 +36,7 @@ export const useSupabase = () => {
         }
 
         if (!data || data.length === 0) {
-          console.warn('No individual trees found in current view')
+          console.warn('No trees found in current view')
           return []
         }
 
@@ -45,18 +47,17 @@ export const useSupabase = () => {
           isCluster: false,
           lat: tree.lat,
           lng: tree.lng,
-          health: tree.avg_ndvi < THRESHOLD_VERY_BAD ? 1 : 
-                  tree.avg_ndvi < THRESHOLD_BAD ? 2 : 
-                  tree.avg_ndvi < THRESHOLD_GOOD ? 3 : 4
+          health: tree.ndvi < THRESHOLD_VERY_BAD ? 1 : 
+                  tree.ndvi < THRESHOLD_BAD ? 2 : 
+                  tree.ndvi < THRESHOLD_GOOD ? 3 : 4
         }))
       }
 
-      // Adjust grid sizes for clustering based on zoom level
-      let gridSize
-      gridSize = zoom < ZOOM_LEVELS.CITY ? 1 : // Approximately 5km for city-level clustering
-                zoom < ZOOM_LEVELS.DISTRICT ? 0.2 : // Approximately 2km for district-level clustering
-                zoom < ZOOM_LEVELS.STREET ? 0.05 : // Approximately 500m for street-level clustering
-                0.001; // Approximately 100m for individual trees
+      let gridSize = zoom <= 10 ? 0.2 : 
+      zoom <= 12 ? 0.05 : 
+      zoom <= 14 ? 0.02 : 
+      zoom <= 16 ? 0.005 : 
+      0.001;
 
       const { data, error } = await client.rpc('get_tree_clusters', {
         min_lat: bounds.south,

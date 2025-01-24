@@ -125,84 +125,6 @@ const getVisibleBounds = (map) => {
   }
 }
 
-
-const MINIMUM_ZOOM_FOR_TREES = 18// Only show individual trees at zoom >= 14
-const CLUSTER_RADIUS_BASE = 50 // Increased base radius for larger clusters
-const MAX_VISIBLE_TREES = 400
-
-const pixelsToLatLng = (map, pixels, latitude) => {
-  const metersPerPixel = 156543.03392 * Math.cos(latitude * Math.PI / 180) / Math.pow(2, map.getZoom())
-  return (pixels * metersPerPixel) / 111320 // Convert to approximate degrees
-}
-
-const clusterTrees = (trees, map) => {
-  if (!trees.length) return []
-  
-  const zoom = map.getZoom()
-  const clusters = []
-  const processed = new Set()
-  
-  // Adjust cluster radius based on zoom (much larger radius when zoomed out)
-  const clusterRadius = pixelsToLatLng(
-    map, 
-    CLUSTER_RADIUS_BASE * (140 - zoom), // Exponentially larger clusters at lower zoom
-    map.getCenter().lat
-  )
-
-  trees.forEach((tree, index) => {
-    if (processed.has(index)) return
-
-    const cluster = {
-      lat: tree.lat,
-      lng: tree.lng,
-      trees: [tree],
-      health: tree.health
-    }
-
-    // Find nearby trees
-    trees.forEach((otherTree, otherIndex) => {
-      if (index === otherIndex || processed.has(otherIndex)) return
-
-      const distance = calculateDistance(
-        { lat: tree.lat, lng: tree.lng },
-        { lat: otherTree.lat, lng: otherTree.lng }
-      )
-
-      if (distance <= clusterRadius) {
-        cluster.trees.push(otherTree)
-        // Update cluster center
-        cluster.lat = cluster.trees.reduce((sum, t) => sum + t.lat, 0) / cluster.trees.length
-        cluster.lng = cluster.trees.reduce((sum, t) => sum + t.lng, 0) / cluster.trees.length
-        // Update cluster health (average)
-        cluster.health = Math.round(cluster.trees.reduce((sum, t) => sum + t.health, 0) / cluster.trees.length)
-        processed.add(otherIndex)
-      }
-    })
-
-    clusters.push(cluster)
-    processed.add(index)
-  })
-
-  return clusters
-}
-
-const createClusterIcon = () => {
-  if (!L) return null
-  return (cluster) => L.divIcon({
-    html: `<div class="cluster-icon" style="background-color: ${
-      cluster.health === 3 ? '#16a34a' : 
-      cluster.health === 2 ? '#ca8a04' : '#dc2626'
-    }">
-      <div class="cluster-icon-inner">
-        ${cluster.trees.length}
-      </div>
-    </div>`,
-    className: 'tree-cluster-icon',
-    iconSize: [40, 30],
-    iconAnchor: [20, 20]
-  })
-}
-
 const updateVisibleTrees = async () => {
   if (!map.value) return
   
@@ -218,39 +140,30 @@ const updateVisibleTrees = async () => {
 
   // Fetch trees in current bounds
   const { fetchTrees } = useSupabase()
-  const treesInBounds = await fetchTrees(bounds)
+  const treesInBounds = await fetchTrees(bounds, zoom)
   
-  // Apply clustering if not zoomed in enough, otherwise show individual trees
-  const visibleItems = zoom >= MINIMUM_ZOOM_FOR_TREES 
-    ? treesInBounds.slice(0, MAX_VISIBLE_TREES).map(tree => ({ ...tree, trees: [tree] }))
-    : clusterTrees(treesInBounds, map.value)
-
   const treeIconFactory = createTreeIcon()
   const clusterIconFactory = createClusterIcon()
   
   // Add new markers
-  visibleItems.forEach(item => {
-    const isCluster = item.trees.length > 1
+  treesInBounds.forEach(item => {
     const marker = L.marker(
       [item.lat, item.lng], 
-      { icon: isCluster ? clusterIconFactory(item) : treeIconFactory(item.health) }
+      { icon: item.isCluster ? clusterIconFactory(item) : treeIconFactory(item.health) }
     )
 
-    if (isCluster) {
+    if (item.isCluster) {
       marker.bindPopup(`
         <div class="font-bold">Tree Cluster</div>
-        <div>Trees in cluster: ${item.trees.length}</div>
+        <div>Trees in cluster: ${item.treeCount}</div>
         <div>Average health: ${'❤️'.repeat(item.health)}</div>
-        <div>Average NDVI: ${item.ndvi}</div>
+        <div>Average NDVI: ${item.avgNdvi}</div>
         <div class="text-sm text-gray-600">Zoom in to see individual trees</div>
       `)
     } else {
-      const tree = item.trees[0]
       marker.bindPopup(`
-        <div class="font-bold">${tree.name}</div>
-        <div>Species: ${tree.species}</div>
-        <div>NDVI: ${tree.ndvi}</div>
-        <div>Health: ${'❤️'.repeat(tree.health)}</div>
+        <div class="font-bold">Tree</div>
+        <div>Health: ${'❤️'.repeat(item.health)}</div>
       `)
     }
     
@@ -264,6 +177,23 @@ const debouncedUpdateTrees = () => {
     clearTimeout(debounceTimeout.value)
   }
   debounceTimeout.value = setTimeout(updateVisibleTrees, 250)
+}
+
+const createClusterIcon = () => {
+  if (!L) return null
+  return (cluster) => L.divIcon({
+    html: `<div class="cluster-icon" style="background-color: ${
+      cluster.health === 3 ? '#16a34a' : 
+      cluster.health === 2 ? '#ca8a04' : '#dc2626'
+    }">
+      <div class="cluster-icon-inner">
+        ${cluster.treeCount}
+      </div>
+    </div>`,
+    className: 'tree-cluster-icon',
+    iconSize: [40, 30],
+    iconAnchor: [20, 20]
+  })
 }
 
 onMounted(async () => {
@@ -325,5 +255,27 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.tree-cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cluster-icon {
+  width: 40px;
+  height: 30px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.cluster-icon-inner {
+  font-size: 14px;
 }
 </style>

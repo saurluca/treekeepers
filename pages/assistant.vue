@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <AppSidebar />
+    <AppSidebar class="z-30" />
     
     <!-- Main content -->
     <div class="flex-1 relative">
@@ -9,7 +9,7 @@
       <div class="relative min-h-screen bg-green-50/95 flex items-center justify-center p-4">
         <div class="w-full max-w-3xl">
           <!-- Chat messages container -->
-          <div class="bg-white/95 rounded-lg shadow-lg mb-4 p-4 h-[70vh] overflow-y-auto relative z-20">
+          <div class="bg-white/95 rounded-lg shadow-lg mb-4 p-4 h-[70vh] overflow-y-auto relative z-10">
             <div 
               v-for="message in displayMessages" 
               :key="message.id" 
@@ -34,7 +34,7 @@
           </div>
 
           <!-- Input form -->
-          <form @submit.prevent="sendMessage" class="flex gap-2 relative z-20">
+          <form @submit.prevent="sendMessage" class="flex gap-2 relative z-10">
             <input
               v-model="userInput"
               type="text"
@@ -54,7 +54,7 @@
       </div>
 
       <!-- Foreground Image -->
-      <div class="absolute inset-0 z-10 pointer-events-none">
+      <div class="absolute inset-0 z-0 pointer-events-none">
         <img 
           src="/image.png" 
           alt="Foreground" 
@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppSidebar from '~/components/AppSidebar.vue'
 
 const userInput = ref('')
@@ -89,10 +89,30 @@ When discussing routes, consider:
 - Accessibility of locations
 - Seasonal factors
 
+be concise and to the point.
+
+Ask if the person wants to plan a route.
+if they do, ask them for how much time they have, if they want to focus on a specific area, and if they want to focus on the trees with worst health.
+redirect them to the statistics page, where they can see the tree health indicators and inspect individual trees.
+
 Keep responses focused on trees, routes, and Berlin's urban environment.
 Use markdown formatting for emphasis: **bold** for important points, *italic* for species names.`
   }
 ])
+
+// Add initial welcome message when component mounts
+onMounted(() => {
+  messages.value.push({
+    role: 'assistant',
+    content: `Hi! I'm your tree route assistant. I can help you:
+
+**1.** Plan tree routes in Berlin
+**2.** Learn about tree health and species
+**3.** Get maintenance advice
+
+Would you like to plan a route today?`
+  })
+})
 
 // Computed property to filter out system messages for display
 const displayMessages = computed(() => 
@@ -181,5 +201,18 @@ const sendMessage = async () => {
 .prose-invert strong,
 .prose-invert em {
   color: inherit;
+}
+
+/* Z-index layering */
+.z-0 {
+  z-index: 0;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+.z-30 {
+  z-index: 30;
 }
 </style> 

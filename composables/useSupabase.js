@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
-const THRESHOLD_VERY_BAD = 0.02
-const THRESHOLD_BAD = 0.1
+const THRESHOLD_VERY_BAD = 0.002
+const THRESHOLD_BAD = 0.01
 const THRESHOLD_GOOD = 0.2
 
 // Define zoom level thresholds for different clustering granularity

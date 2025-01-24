@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppSidebar from '~/components/AppSidebar.vue'
 
 const userInput = ref('')
@@ -97,9 +97,23 @@ redirect them to the statistics page, where they can see the tree health indicat
 
 Keep responses focused on trees, routes, and Berlin's urban environment.
 Use markdown formatting for emphasis: **bold** for important points, *italic* for species names.`
-
   }
 ])
+
+// Add initial welcome message when component mounts
+onMounted(() => {
+  messages.value.push({
+    role: 'assistant',
+    content: `Hi! I'm your tree route assistant. I can help you:
+
+**1.** Plan tree routes in Berlin
+**2.** Learn about tree health and species
+**3.** Get maintenance advice
+
+Would you like to plan a route today?`
+  })
+})
+
 // Computed property to filter out system messages for display
 const displayMessages = computed(() => 
   messages.value.filter(message => message.role !== 'system')

@@ -192,30 +192,10 @@ const debouncedUpdateTrees = () => {
   debounceTimeout.value = setTimeout(updateVisibleTrees, 250)
 }
 
-// const createClusterIcon = () => {
-//   if (!L) return null
-//   return (cluster) => L.divIcon({
-//     html: `<div class="cluster-icon rounded-full" style="background-color: ${
-//       cluster.health === 3 ? '#16a34a' : 
-//       cluster.health === 2 ? '#ca8a04' : '#dc2626'
-//     }">
-// //       <div class="cluster-icon-inner">
-// //         ${cluster.treeCount}
-// //       </div>
-// //     </div>`,
-//     iconSize: [40, 40],
-//     iconAnchor: [20, 20],
-//     popupAnchor: [0, -20]
-//   })
-// }
-
 const createClusterIcon = () => {
   if (!L) return null
   return (cluster) => L.divIcon({
-    html: `<div class="cluster-icon rounded-full" style="background-color: ${
-      cluster.health === 3 ? '#16a34a' : 
-      cluster.health === 2 ? '#ca8a04' : '#dc2626'
-    }">
+    html: `<div class="cluster-icon px-2 py-2.5 rounded-full flex items-center justify-center" style="background-color: #3B82F6; opacity: 0.9; color: white;">
             <span class="text-sm font-bold">${cluster.treeCount}</span>
           </div>`,
     iconSize: [40, 40],

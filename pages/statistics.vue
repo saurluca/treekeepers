@@ -5,20 +5,31 @@
     
     <!-- Main content -->
     <div class="flex-1 relative">
-      <div class="relative min-h-screen bg-green-50/95 flex items-start justify-center p-4">
-        <!-- Main container with responsive width -->
-        <div class="w-full" :style="{ maxWidth: `${contentWidth}px` }">
-          <div class="bg-white/95 rounded-lg shadow-lg p-4 sm:p-6 lg:p-8 relative z-10">
-            <h1 class="text-2xl sm:text-3xl font-bold text-green-800 mb-4 sm:mb-6">Tree Health Statistics</h1>
+      <!-- Content with semi-transparent background -->
+      <div class="relative min-h-screen bg-green-50/95 flex flex-col p-2 pt-12 lg:pt-2">
+        <div class="w-full max-w-3xl lg:ml-64 flex flex-col">
+          <!-- Main container with dynamic sizing -->
+          <div class="bg-white/95 rounded-lg shadow-lg mb-2 p-3 overflow-y-auto relative z-10"
+               :style="{
+                 width: containerWidth,
+                 height: `${containerHeight}vh`,
+                 fontSize: `${baseFontSize}px`
+               }">
+            <h1 class="text-2xl sm:text-3xl font-bold text-green-800 mb-3">Tree Health Statistics</h1>
             
-            <!-- Search and Filter Bar - responsive spacing -->
-            <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <!-- Search and Filter Bar -->
+            <div class="flex flex-col sm:flex-row gap-2 mb-3"
+                 :style="{ height: `${searchBarHeight}vh` }">
               <input
                 type="text"
                 placeholder="Search by coordinates..."
-                class="flex-1 p-2 text-sm sm:text-base rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                class="flex-1 p-1.5 rounded-lg border border-green-200 shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                :style="{ fontSize: `${inputFontSize}px` }"
               />
-              <select class="p-2 text-sm sm:text-base rounded-lg border border-green-200 shadow-sm">
+              <select 
+                class="p-1.5 rounded-lg border border-green-200 shadow-sm"
+                :style="{ fontSize: `${inputFontSize}px` }"
+              >
                 <option value="all">All Health Levels</option>
                 <option value="3">Healthy (3)</option>
                 <option value="2">Moderate (2)</option>
@@ -26,29 +37,42 @@
               </select>
             </div>
 
-            <!-- Table Container with responsive height -->
-            <div class="overflow-auto rounded-lg shadow" :style="{ maxHeight: `${tableHeight}vh` }">
+            <!-- Table Container -->
+            <div class="overflow-auto rounded-lg shadow"
+                 :style="{ height: `${tableHeight}vh` }">
               <table class="min-w-full bg-white">
                 <thead class="bg-green-50">
                   <tr>
-                    <th class="py-3 px-4 text-left text-green-800 font-semibold border-b">Coordinates</th>
-                    <th class="py-3 px-4 text-left text-green-800 font-semibold border-b">Health</th>
-                    <th class="py-3 px-4 text-left text-green-800 font-semibold border-b">NDVI</th>
-                    <th class="py-3 px-4 text-center text-green-800 font-semibold border-b">Actions</th>
+                    <th class="py-2 px-3 text-left text-green-800 font-semibold border-b"
+                        :style="{ fontSize: `${tableFontSize}px` }">
+                      Coordinates
+                    </th>
+                    <th class="py-2 px-3 text-left text-green-800 font-semibold border-b"
+                        :style="{ fontSize: `${tableFontSize}px` }">
+                      Health
+                    </th>
+                    <th class="py-2 px-3 text-left text-green-800 font-semibold border-b"
+                        :style="{ fontSize: `${tableFontSize}px` }">
+                      NDVI
+                    </th>
+                    <th class="py-2 px-3 text-center text-green-800 font-semibold border-b"
+                        :style="{ fontSize: `${tableFontSize}px` }">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                   <template v-for="tree in trees" :key="tree.id">
                     <tr class="hover:bg-green-50/50 transition-colors">
-                      <td class="py-3 px-4">{{ formatCoordinates(tree.lat, tree.lng) }}</td>
-                      <td class="py-3 px-4">
+                      <td class="py-2 px-3">{{ formatCoordinates(tree.lat, tree.lng) }}</td>
+                      <td class="py-2 px-3">
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
                               :class="healthClass(tree.health)">
                           {{ '❤️'.repeat(tree.health) }}
                         </span>
                       </td>
-                      <td class="py-3 px-4">{{ tree.ndvi?.toFixed(2) || 'N/A' }}</td>
-                      <td class="py-3 px-4 text-center">
+                      <td class="py-2 px-3">{{ tree.ndvi?.toFixed(2) || 'N/A' }}</td>
+                      <td class="py-2 px-3 text-center">
                         <button 
                           @click="toggleDetails(tree.id)"
                           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -107,14 +131,18 @@ const trees = ref([])
 const expandedTreeId = ref(null)
 let L
 
+<<<<<<< HEAD
 // Register Chart.js components
 Chart.register(...registerables)
 
 // Responsive sizing
+=======
+// Screen size computations
+>>>>>>> 842236f8edbdcd10de8a6404147742fe5b496512
 const windowWidth = ref(window.innerWidth)
 const windowHeight = ref(window.innerHeight)
 
-// Update window dimensions on resize
+// Update dimensions on resize
 onMounted(() => {
   window.addEventListener('resize', handleResize)
 })
@@ -128,37 +156,39 @@ function handleResize() {
   windowHeight.value = window.innerHeight
 }
 
-// Compute content width based on screen size
-const contentWidth = computed(() => {
-  const baseWidth = 1200 // Maximum width
-  const minWidth = 320 // Minimum width
-  const screenWidth = windowWidth.value
-  
-  if (screenWidth <= 640) { // Mobile
-    return Math.max(screenWidth - 32, minWidth) // 16px padding on each side
-  } else if (screenWidth <= 1024) { // Tablet
-    return Math.min(screenWidth * 0.85, baseWidth)
-  } else { // Desktop
-    return baseWidth
+// Computed properties for responsive sizing
+const containerWidth = computed(() => {
+  const width = windowWidth.value
+  if (width <= 640) {
+    return 'calc(100vw - 80px)'
+  } else if (width <= 1024) {
+    return 'min(calc(100vw - 80px), 768px)'
   }
+  return 'min(calc(100vw - 260px), 768px)'
 })
 
-// Compute table height based on screen size
+const containerHeight = computed(() => {
+  return windowHeight.value < 800 ? 85 : 90
+})
+
+const searchBarHeight = computed(() => {
+  return windowHeight.value < 800 ? 8 : 10
+})
+
 const tableHeight = computed(() => {
-  const screenHeight = windowHeight.value
-  
-  if (screenHeight < 600) {
-    return 50 // Smaller height for very small screens
-  } else if (screenHeight > 1200) {
-    return 70 // Larger height for big screens
-  } else {
-    return 60 // Default height
-  }
+  return windowHeight.value < 800 ? 65 : 70
 })
 
-// Compute expanded details height
-const detailsHeight = computed(() => {
-  return windowHeight.value < 800 ? 200 : 300 // Adjust map/details height based on screen height
+const baseFontSize = computed(() => {
+  return Math.max(14, Math.min(16, windowWidth.value / 80))
+})
+
+const inputFontSize = computed(() => {
+  return Math.max(12, Math.min(14, windowWidth.value / 90))
+})
+
+const tableFontSize = computed(() => {
+  return Math.max(12, Math.min(14, windowWidth.value / 90))
 })
 
 const createTreeIcon = () => {
@@ -333,6 +363,53 @@ function healthClass(health) {
 /* Ensure proper scrolling on mobile */
 .overflow-auto {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Add smooth margin transitions */
+.ml-auto {
+  transition: margin 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
+
+/* Mobile optimizations */
+@media (max-width: 1024px) {
+  .lg\:ml-64 {
+    margin-left: 0;
+  }
+  
+  .bg-white\/95 {
+    width: min(calc(100vw - 80px), 768px) !important;
+    max-width: calc(100vw - 80px);
+    margin-right: 0.75rem;
+    margin-left: 2rem;
+  }
+}
+
+/* Add responsive width adjustments */
+@media (min-width: 1024px) {
+  .bg-white\/95 {
+    width: min(calc(100vw - 260px), 768px) !important;
+    max-width: 768px;
+  }
+}
+
+/* Ensure smooth transitions for all size changes */
+.bg-white\/95 {
+  transition: all 0.3s ease-in-out;
+}
+
+input, select, table {
+  transition: font-size 0.3s ease-in-out;
+}
+
+/* Prevent text from becoming too small on mobile */
+@media (max-width: 640px) {
+  input, select, td, th {
+    font-size: max(12px, 3.5vw) !important;
+  }
+  
+  h1 {
+    font-size: max(20px, 5vw) !important;
+  }
 }
 </style>
 

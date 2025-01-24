@@ -89,11 +89,13 @@ When discussing routes, consider:
 - Accessibility of locations
 - Seasonal factors
 
+be concise and to the point.
+
 Keep responses focused on trees, routes, and Berlin's urban environment.
 Use markdown formatting for emphasis: **bold** for important points, *italic* for species names.`
+
   }
 ])
-
 // Computed property to filter out system messages for display
 const displayMessages = computed(() => 
   messages.value.filter(message => message.role !== 'system')

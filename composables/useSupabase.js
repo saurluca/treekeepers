@@ -1,8 +1,8 @@
 import { ref } from 'vue'
 
-const THRESHOLD_VERY_BAD = 0.002
-const THRESHOLD_BAD = 0.01
-const THRESHOLD_GOOD = 0.2
+const THRESHOLD_VERY_BAD = 0.33
+const THRESHOLD_BAD = 0.66
+const THRESHOLD_GOOD = 1
 
 export const useSupabase = () => {
   const client = useSupabaseClient()
@@ -97,12 +97,12 @@ export const useSupabase = () => {
 export const useSupabaseByValue = () => {
   const client = useSupabaseClient()
 
-  const fetchTreesSortedByValue = async (bounds) => {
+  const fetchTreesSortedByValue = async () => {
     try {
-      console.log('Fetching trees ')
+      console.log('Fetching trees')
       
       const { data, error } = await client
-        .from('trees')
+        .from('trees2')
         .select('*')
         .limit(100)
       
@@ -118,21 +118,75 @@ export const useSupabaseByValue = () => {
 
       console.log(`Fetched ${data.length} trees in current view`)
       
-      return data.map(tree => ({
-        id: tree.id,
-        lat: tree.lat,
-        lng: tree.lng,
-        name: tree.name || 'Unknown Tree',
-        species: tree.species || 'Unknown Species',
-        health: tree.health || Math.floor(Math.random() * 3) + 1
+      const treesWithMeasurements = await Promise.all(data.map(async tree => {
+        const measurements = await fetchTreeMeasurements(tree.id)
+        const latestSummerMeasurement = getLatestSummerMeasurement(measurements)
+        const health = calculateHealth(latestSummerMeasurement?.ndvi)
+        return {
+          id: tree.id,
+          lat: tree.lat,
+          lng: tree.lng,
+          ndvi: latestSummerMeasurement?.ndvi || 0,
+          name: tree.name || 'Unknown Tree',
+          species: tree.species || 'Unknown Species',
+          health,
+          measurements
+        }
       }))
+      
+      return treesWithMeasurements
     } catch (error) {
       console.error('Error in fetchTrees:', error.message)
       return []
     }
   }
 
+  const fetchTreeMeasurements = async (treeId) => {
+    try {
+      console.log(`Fetching measurements for tree ${treeId}`)
+      
+      const { data, error } = await client
+        .from('ndvi_measurements')
+        .select('ndvi, measurement_date')
+        .eq('tree_id', treeId) // Ensure tree_id is treated as a bigint
+        .order('measurement_date', { ascending: false })
+      
+      if (error) {
+        console.error('Supabase error:', error.message)
+        throw error
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn(`No measurements found for tree ${treeId}`)
+        return []
+      }
+
+      console.log(`Fetched ${data.length} measurements for tree ${treeId}`)
+      
+      return data
+    } catch (error) {
+      console.error('Error in fetchTreeMeasurements:', error.message)
+      return []
+    }
+  }
+
+  const getLatestSummerMeasurement = (measurements) => {
+    const summerMonths = [6, 7, 8] // June, July, August
+    return measurements.find(measurement => {
+      const month = new Date(measurement.measurement_date).getMonth() + 1
+      return summerMonths.includes(month)
+    })
+  }
+
+  const calculateHealth = (ndvi) => {
+    if (ndvi < THRESHOLD_VERY_BAD) return 1
+    if (ndvi < THRESHOLD_BAD) return 2
+    if (ndvi < THRESHOLD_GOOD) return 3
+    return 4
+  }
+
   return {
-    fetchTreesSortedByValue
+    fetchTreesSortedByValue,
+    fetchTreeMeasurements
   }
 }

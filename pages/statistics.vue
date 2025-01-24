@@ -66,33 +66,10 @@
                             <div :id="'map-' + tree.id" class="w-full h-64"></div>
                           </div>
                           
-                          <!-- Tree Details -->
-                          <div class="bg-white rounded-lg shadow-md p-4">
-                            <h3 class="font-semibold text-green-800 mb-4">Tree Details</h3>
-                            <div class="space-y-2">
-                              <p><span class="font-medium">Health Score:</span> {{ tree.health }}/3</p>
-                              <p><span class="font-medium">NDVI:</span> {{ tree.ndvi?.toFixed(3) || 'N/A' }}</p>
-                              <p><span class="font-medium">Last Updated:</span> {{ new Date().toLocaleDateString() }}</p>
-                            </div>
-                          </div>
-                          
-                          <!-- Actions -->
-                          <div class="bg-white rounded-lg shadow-md p-4">
-                            <h3 class="font-semibold text-green-800 mb-4">Actions</h3>
-                            <div class="space-y-3">
-                              <button 
-                                @click="markTreeOk(tree.id)"
-                                class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                              >
-                                Mark as Visited
-                              </button>
-                              <button 
-                                @click="planRoute(tree.lat, tree.lng)"
-                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Plan Route
-                              </button>
-                            </div>
+                          <!-- Tree Measurements Chart -->
+                          <div class="bg-white rounded-lg shadow-md p-4 col-span-2">
+                            <h3 class="font-semibold text-green-800 mb-4">Tree Measurements Over Time</h3>
+                            <canvas :id="'chart-' + tree.id"></canvas>
                           </div>
                         </div>
                       </td>
@@ -122,11 +99,16 @@ import { ref, onMounted, watch, nextTick, computed, onUnmounted } from 'vue'
 import AppSidebar from '~/components/AppSidebar.vue'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css'
+import { Chart, registerables } from 'chart.js'
+import 'chartjs-adapter-date-fns'
 
 const { fetchTreesSortedByValue } = useSupabaseByValue()
 const trees = ref([])
 const expandedTreeId = ref(null)
 let L
+
+// Register Chart.js components
+Chart.register(...registerables)
 
 // Responsive sizing
 const windowWidth = ref(window.innerWidth)
@@ -223,6 +205,44 @@ watch(expandedTreeId, async (newId) => {
       }).addTo(map)
       const treeIcon = createTreeIcon()
       L.marker([tree.lat, tree.lng], { icon: treeIcon(tree.health) }).addTo(map)
+
+      // Create chart
+      const ctx = document.getElementById(`chart-${tree.id}`).getContext('2d')
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: tree.measurements.map(m => new Date(m.measurement_date).toLocaleDateString()),
+          datasets: [{
+            label: 'NDVI',
+            data: tree.measurements.map(m => m.ndvi),
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'month'
+              },
+              title: {
+                display: true,
+                text: 'Date'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'NDVI'
+              }
+            }
+          }
+        }
+      })
     }
   }
 })

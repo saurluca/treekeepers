@@ -1,31 +1,41 @@
 <template>
   <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <AppSidebar />
+    <AppSidebar class="z-30" />
     
     <!-- Main content -->
-    <div class="flex-1 bg-gray-100 p-4">
+    <div class="flex-1 bg-gray-100 p-4 relative">
       <div class="container mx-auto relative">
-        <div class="flex gap-4 mb-4">
+        <!-- Search container - responsive width -->
+        <div class="flex gap-2 sm:gap-4 mb-4 w-full max-w-screen-lg transition-all duration-300 relative z-10"
+             :style="{ width: `${searchBarWidth}%` }">
           <input
             type="text"
             v-model="searchQuery"
             @keyup.enter="handleSearch"
             placeholder="Search for a location..."
-            class="flex-1 p-2 rounded-lg border border-gray-200 shadow-sm"
+            class="flex-1 p-2 text-sm sm:text-base rounded-lg border border-gray-200 shadow-sm min-w-0"
           />
           <button
             @click="handlePlanRoute"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            class="px-2 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap text-sm sm:text-base"
           >
             Plan Tree Route
           </button>
         </div>
+
+        <!-- Map container - responsive height -->
         <div 
           id="map" 
-          class="w-full h-[600px] rounded-lg shadow-lg border border-gray-200"
+          class="w-full rounded-lg shadow-lg border border-gray-200 transition-all duration-300 relative z-0"
+          :style="{ height: `${mapHeight}vh` }"
         ></div>
-        <div class="absolute top-14 right-0 bg-white px-3 py-1 rounded-lg shadow-md z-[1000]">
+
+        <!-- Zoom indicator - responsive positioning and size -->
+        <div 
+          class="absolute top-14 right-4 bg-white px-2 sm:px-3 py-1 rounded-lg shadow-md z-20 text-sm sm:text-base"
+          :style="{ opacity: zoomIndicatorOpacity }"
+        >
           Zoom: {{ currentZoom }}
         </div>
       </div>
@@ -40,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { TreeDeciduous } from 'lucide-vue-next'
 import { useTreeRoute } from '~/composables/useTreeRoute'
 import { useGeoUtils } from '~/composables/useGeoUtils'
@@ -54,6 +64,8 @@ let L
 const trees = ref([])
 const currentZoom = ref(11)
 const errorMessage = ref('')
+const windowWidth = ref(window.innerWidth)
+const windowHeight = ref(window.innerHeight)
 
 // Initialize the route planning composable
 const { planRoute } = useTreeRoute(map)
@@ -241,6 +253,51 @@ onUnmounted(() => {
     mapInitialized.value = false  // Reset initialization flag
   }
 })
+
+// Update window dimensions on resize
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+function handleResize() {
+  windowWidth.value = window.innerWidth
+  windowHeight.value = window.innerHeight
+}
+
+// Compute search bar width based on zoom and screen size
+const searchBarWidth = computed(() => {
+  const baseWidth = windowWidth.value > 640 ? 50 : 90 // Wider on mobile
+  const zoomFactor = currentZoom.value
+  
+  if (zoomFactor >= 15) {
+    return Math.min(baseWidth * 1.3, 95)
+  } else if (zoomFactor <= 8) {
+    return Math.max(baseWidth * 0.7, 40)
+  } else {
+    const factor = (zoomFactor - 8) / (15 - 8)
+    return baseWidth + (factor * baseWidth * 0.3)
+  }
+})
+
+// Compute map height based on screen size
+const mapHeight = computed(() => {
+  const baseHeight = 80 // Base height in vh
+  if (windowHeight.value < 600) {
+    return 70 // Smaller height for very small screens
+  } else if (windowHeight.value > 1200) {
+    return 85 // Larger height for big screens
+  }
+  return baseHeight
+})
+
+// Compute zoom indicator opacity based on map interaction
+const zoomIndicatorOpacity = computed(() => {
+  return currentZoom.value > 8 ? 1 : 0.7
+})
 </script>
 
 <style scoped>
@@ -278,5 +335,49 @@ onUnmounted(() => {
 
 .cluster-icon-inner {
   font-size: 14px;
+}
+
+/* Responsive container adjustments */
+@media (max-width: 1024px) {
+  .container {
+    padding-left: 4rem;
+  }
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Ensure proper text sizing */
+@media (max-width: 640px) {
+  input::placeholder {
+    font-size: 0.875rem;
+  }
+}
+
+/* Prevent map overflow */
+#map {
+  max-height: calc(100vh - 8rem);
+  min-height: 300px;
+}
+
+/* Ensure proper z-index stacking */
+.z-0 {
+  z-index: 0;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+.z-20 {
+  z-index: 20;
+}
+
+.z-30 {
+  z-index: 30;
 }
 </style>

@@ -1,5 +1,9 @@
 import { ref } from 'vue'
 
+const THRESHOLD_VERY_BAD = 0.02
+const THRESHOLD_BAD = 0.1
+const THRESHOLD_GOOD = 0.2
+
 export const useSupabase = () => {
   const client = useSupabaseClient()
 
@@ -33,7 +37,8 @@ export const useSupabase = () => {
         lng: tree.lng,
         name: tree.name || 'Unknown Tree',
         species: tree.species || 'Unknown Species',
-        health: tree.health || Math.floor(Math.random() * 3) + 1
+        ndvi: tree.ndvi,
+        health: tree.ndvi < THRESHOLD_VERY_BAD ? 1 : tree.ndvi < THRESHOLD_BAD ? 2 : tree.ndvi < THRESHOLD_GOOD ? 3 : 4
       }))
     } catch (error) {
       console.error('Error in fetchTrees:', error.message)

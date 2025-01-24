@@ -127,7 +127,7 @@ const getVisibleBounds = (map) => {
 
 
 const MINIMUM_ZOOM_FOR_TREES = 18// Only show individual trees at zoom >= 14
-const CLUSTER_RADIUS_BASE = 30 // Increased base radius for larger clusters
+const CLUSTER_RADIUS_BASE = 50 // Increased base radius for larger clusters
 const MAX_VISIBLE_TREES = 400
 
 const pixelsToLatLng = (map, pixels, latitude) => {
@@ -198,7 +198,7 @@ const createClusterIcon = () => {
       </div>
     </div>`,
     className: 'tree-cluster-icon',
-    iconSize: [40, 40],
+    iconSize: [40, 30],
     iconAnchor: [20, 20]
   })
 }
@@ -241,6 +241,7 @@ const updateVisibleTrees = async () => {
         <div class="font-bold">Tree Cluster</div>
         <div>Trees in cluster: ${item.trees.length}</div>
         <div>Average health: ${'❤️'.repeat(item.health)}</div>
+        <div>Average NDVI: ${item.ndvi}</div>
         <div class="text-sm text-gray-600">Zoom in to see individual trees</div>
       `)
     } else {
@@ -248,6 +249,7 @@ const updateVisibleTrees = async () => {
       marker.bindPopup(`
         <div class="font-bold">${tree.name}</div>
         <div>Species: ${tree.species}</div>
+        <div>NDVI: ${tree.ndvi}</div>
         <div>Health: ${'❤️'.repeat(tree.health)}</div>
       `)
     }
